@@ -18,6 +18,13 @@ _LIST = (
     ("webdl", "/webdl/mylist"),
     ("usenet", "/usenet/mylist"),
 )
+# Control endpoint + the id field each expects, per kind. Deleting removes the
+# whole item (every file inside it), which is all the TorBox API supports.
+_CONTROL = {
+    "torrent": ("/torrents/controltorrent", "torrent_id"),
+    "webdl": ("/webdl/controlwebdownload", "webdl_id"),
+    "usenet": ("/usenet/controlusenet", "usenet_id"),
+}
 
 
 class TorBox(Provider):
@@ -28,6 +35,7 @@ class TorBox(Provider):
     """
 
     name = "torbox"
+    capabilities = ("delete",)
 
     def __init__(self, client: httpx.AsyncClient, apikey: str) -> None:
         super().__init__(client)
@@ -75,6 +83,21 @@ class TorBox(Provider):
         if not j.get("success", True):
             raise RuntimeError(j.get("detail") or "torbox: could not request link")
         return j.get("data")
+
+    async def delete(self, hint: dict) -> None:
+        control = _CONTROL.get(hint.get("k"))
+        if not control or hint.get("i") is None:
+            raise ValueError("torbox: this item cannot be deleted")
+        path, id_field = control
+        r = await self._client.post(
+            f"{BASE}{path}",
+            headers=self._headers,
+            json={id_field: hint["i"], "operation": "delete"},
+        )
+        r.raise_for_status()
+        j = r.json()
+        if not j.get("success", True):
+            raise RuntimeError(j.get("detail") or "torbox: delete failed")
 
     async def health(self) -> bool:
         try:

@@ -9,8 +9,10 @@
     --ink:#0E1116; --panel:#151A21; --panel2:#1B222B; --line:#263039;
     --text:#D6DEE8; --muted:#7A8794; --accent:#35D0BA; --accent-dim:#1c6d61;
     --rd:#4C8DFF; --ad:#F5A623; --tb:#A472FF; --mock:#7A8794; --danger:#ff6b6b;
+    --danger-dim:#5a2b2b;
     --ui:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --grid:34px minmax(0,1fr) 84px 118px 70px 92px 78px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
@@ -62,14 +64,23 @@
 
   /* Manifest */
   .meta{color:var(--muted);font-size:12px;padding:2px 2px 10px;font-family:var(--mono)}
-  .manifest{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
-  .row{display:grid;grid-template-columns:34px 1fr 92px 130px 78px 96px 40px;
+  .manifest{background:var(--panel)}   /* plain wrapper; thead+rows draw the frame */
+  /* Column header lives OUTSIDE the scrolling list so its sticky positioning is
+     not clipped by an overflow ancestor -- this was the "first row hides under
+     the header" bug. */
+  .thead{position:sticky;top:59px;z-index:15;display:grid;grid-template-columns:var(--grid);
+    align-items:center;gap:12px;padding:10px 14px;background:var(--panel2);
+    color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+    border:1px solid var(--line);border-bottom:none;border-radius:12px 12px 0 0}
+  .thead .r{text-align:right}
+  .rows{border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;overflow:hidden}
+
+  .row{display:grid;grid-template-columns:var(--grid);
     align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:none}
-  .row.head{position:sticky;top:60px;background:var(--panel2);color:var(--muted);
-    font-size:11px;text-transform:uppercase;letter-spacing:.6px;z-index:5}
-  .row:not(.head):hover{background:var(--panel2)}
-  .name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row:hover{background:var(--panel2)}
+  .row.ep{padding-left:52px;background:rgba(255,255,255,.012)}
+  .name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .name .sub{display:block;color:var(--muted);font-size:11px;font-family:var(--mono);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tag{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;
@@ -80,11 +91,30 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .size{font-family:var(--mono);font-size:12px;text-align:right;color:var(--text)}
   input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
-  .copy{background:transparent;border:1px solid var(--line);color:var(--muted);
-    width:30px;height:30px;border-radius:7px;cursor:pointer;display:grid;place-items:center}
-  .copy:hover{color:var(--accent);border-color:var(--accent-dim)}
-  .copy.ok{color:var(--accent);border-color:var(--accent)}
-  .copy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .ico{background:transparent;border:1px solid var(--line);color:var(--muted);
+    width:30px;height:30px;border-radius:7px;cursor:pointer;display:grid;place-items:center;flex:none}
+  .ico:hover{color:var(--accent);border-color:var(--accent-dim)}
+  .ico.ok{color:var(--accent);border-color:var(--accent)}
+  .ico.del:hover{color:var(--danger);border-color:var(--danger-dim)}
+  .ico:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .ico[disabled]{opacity:.4;cursor:default}
+
+  /* Group / season headers */
+  .grp{display:flex;align-items:center;gap:10px;padding:9px 14px;
+    border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+  .grp.series{background:var(--panel2)}
+  .grp.season{padding-left:34px;background:rgba(255,255,255,.02)}
+  .grp:hover{background:#20272f}
+  .chev{width:14px;height:14px;flex:none;transition:transform .15s;color:var(--muted);
+    display:grid;place-items:center}
+  .grp.open > .chev{transform:rotate(90deg)}
+  .gname{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grp.season .gname{font-weight:500;color:var(--text)}
+  .gmeta{color:var(--muted);font-size:11px;font-family:var(--mono);white-space:nowrap}
+  .gsize{font-family:var(--mono);font-size:12px;color:var(--text);white-space:nowrap;min-width:64px;text-align:right}
+  .gact{display:flex;gap:6px;flex:none}
+  .kids[hidden]{display:none}
 
   /* States */
   .state{padding:56px 20px;text-align:center;color:var(--muted)}
@@ -97,13 +127,14 @@
     transition:transform .22s ease;background:linear-gradient(180deg,#12171e,#0d1116);
     border-top:1px solid var(--accent-dim)}
   .tray.show{transform:none}
-  .tray .wrap{display:flex;align-items:center;gap:16px;height:72px}
+  .tray .wrap{display:flex;align-items:center;gap:12px;height:72px}
   .tray .info{font-family:var(--mono);font-size:13px}
   .tray .info b{color:var(--accent)}
   .tray .info span{color:var(--muted)}
   .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);
     height:40px;padding:0 14px;border-radius:9px;cursor:pointer}
   .ghost:hover{color:var(--text)}
+  .ghost.danger:hover{color:var(--danger);border-color:var(--danger-dim)}
   .primary{background:var(--accent);border:none;color:#08110f;height:40px;padding:0 18px;
     border-radius:9px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px}
   .primary:hover{filter:brightness(1.06)}
@@ -142,9 +173,10 @@
   .cfg-rm[disabled]{opacity:.35;cursor:default}
 
   @media (max-width:760px){
-    .row{grid-template-columns:30px 1fr 80px 84px 36px}
-    .row .col-host,.row .col-kind{display:none}
+    :root{--grid:30px minmax(0,1fr) 74px 84px}
+    .thead .col-host,.thead .col-kind,.row .col-host,.row .col-kind{display:none}
     .dots{display:none}
+    .row.ep{padding-left:40px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -156,6 +188,7 @@
       <small>link manifest → JDownloader2</small></div>
     <div class="dots" id="dots"></div>
     <div class="spacer"></div>
+    <button class="iconbtn" id="expandAll" title="Expand / collapse all series">⊟ Groups</button>
     <button class="iconbtn" id="refresh" title="Re-fetch from providers">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
@@ -173,6 +206,10 @@
     </div>
     <div class="chips" id="provChips"></div>
     <div class="chips" id="kindChips"></div>
+    <label class="chip" id="groupToggle" title="Group episodes into series / seasons"
+      style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="groupChk" checked style="width:14px;height:14px"/> group series
+    </label>
     <select id="sort" title="Sort by">
       <option value="name">name</option><option value="size">size</option>
       <option value="added">added</option><option value="host">host</option>
@@ -186,14 +223,12 @@
   <div class="meta" id="meta"></div>
   <div id="errors"></div>
 
-  <div class="manifest">
-    <div class="row head">
-      <div><input type="checkbox" id="selAll" title="Select all shown"/></div>
-      <div>name</div><div>provider</div><div class="col-host">host</div>
-      <div class="col-kind">kind</div><div style="text-align:right">size</div><div></div>
-    </div>
-    <div id="rows"></div>
+  <div class="thead" id="thead">
+    <div><input type="checkbox" id="selAll" title="Select all shown"/></div>
+    <div>name</div><div>provider</div><div class="col-host">host</div>
+    <div class="col-kind">kind</div><div class="r">size</div><div></div>
   </div>
+  <div class="manifest"><div class="rows" id="rows"></div></div>
 </div>
 
 <div class="tray" id="tray">
@@ -201,6 +236,7 @@
     <div class="info"><b id="selCount">0</b> selected <span id="selSize"></span></div>
     <div class="spacer"></div>
     <button class="ghost" id="clearSel">Clear</button>
+    <button class="ghost danger" id="delSel">Delete</button>
     <button class="primary" id="copyJd">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
@@ -228,6 +264,10 @@
 <script>
 const $ = s => document.querySelector(s);
 let ALL = [], SELECTED = new Set(), AUTH = false;
+let CAPS = {};                 // provider -> [capabilities]
+let EXPANDED = new Set();      // open group keys
+let KEYIDS = {};               // group key -> [link ids] (rebuilt each render)
+const SEP = '§';
 const KEY = () => localStorage.getItem('debridhub_key') || '';
 
 function headers(){ const h={}; if(AUTH && KEY()) h['Authorization']='Bearer '+KEY(); return h; }
@@ -241,20 +281,24 @@ function human(n){ n=+n||0; const u=['B','KB','MB','GB','TB']; let i=0;
   while(n>=1024&&i<u.length-1){n/=1024;i++;} return (i?n.toFixed(1):n.toFixed(0))+' '+u[i]; }
 function toast(msg, err){ const t=$('#toast'); t.textContent=msg;
   t.className='toast show'+(err?' err':''); clearTimeout(t._h);
-  t._h=setTimeout(()=>t.className='toast',2200); }
+  t._h=setTimeout(()=>t.className='toast',2600); }
+function esc(s){ return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 async function clip(text){
   try{ await navigator.clipboard.writeText(text); return true; }
   catch(e){ const a=document.createElement('textarea'); a.value=text;
     document.body.appendChild(a); a.select();
     const ok=document.execCommand('copy'); a.remove(); return ok; }
 }
+function providerCan(p, cap){ return (CAPS[p]||[]).includes(cap); }
 
 async function loadProviders(){
   const d = await api('/api/providers');
   AUTH = d.auth_required;
+  CAPS = {};
+  d.providers.forEach(p => CAPS[p.name] = p.capabilities || []);
   $('#keybtn').style.display = AUTH ? '' : 'none';
   $('#dots').innerHTML = d.providers.map(p =>
-    `<span class="dot ${p.healthy?'up':'down'}"><i></i>${p.name}</span>`).join('') ||
+    `<span class="dot ${p.healthy?'up':'down'}"><i></i>${esc(p.name)}</span>`).join('') ||
     '<span class="dot">no providers configured</span>';
 }
 
@@ -262,6 +306,9 @@ async function loadLinks(refresh){
   $('#rows').innerHTML = `<div class="state">loading…</div>`;
   const d = await api('/api/links'+(refresh?'?refresh=true':''));
   ALL = d.links;
+  // drop selections/expansions that no longer exist
+  const ids = new Set(ALL.map(l=>l.id));
+  SELECTED = new Set([...SELECTED].filter(id=>ids.has(id)));
   renderErrors(d.errors);
   buildFilters();
   render();
@@ -269,18 +316,20 @@ async function loadLinks(refresh){
 function renderErrors(errs){
   const keys = Object.keys(errs||{});
   $('#errors').innerHTML = keys.length
-    ? `<div class="errbar">Couldn't reach: ${keys.map(k=>k+' ('+errs[k]+')').join(' · ')}</div>` : '';
+    ? `<div class="errbar">Couldn't reach: ${keys.map(k=>esc(k+' ('+errs[k]+')')).join(' · ')}</div>` : '';
 }
 
 function buildFilters(){
   const provs=[...new Set(ALL.map(l=>l.provider))].sort();
   const kinds=[...new Set(ALL.map(l=>l.kind))].sort();
   const pc={realdebrid:'var(--rd)',alldebrid:'var(--ad)',torbox:'var(--tb)',mock:'var(--mock)'};
+  const onProv=new Set([...document.querySelectorAll('.chip.prov.on')].map(c=>c.dataset.prov));
+  const onKind=new Set([...document.querySelectorAll('.chip.kind.on')].map(c=>c.dataset.kind));
   $('#provChips').innerHTML = provs.map(p=>
-    `<button class="chip prov" data-prov="${p}" style="color:${pc[p]||'var(--muted)'}">${p}</button>`).join('');
+    `<button class="chip prov${onProv.has(p)?' on':''}" data-prov="${esc(p)}" style="color:${pc[p]||'var(--muted)'}">${esc(p)}</button>`).join('');
   $('#kindChips').innerHTML = kinds.map(k=>
-    `<button class="chip kind" data-kind="${k}">${k}</button>`).join('');
-  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{c.classList.toggle('on');render();});
+    `<button class="chip kind${onKind.has(k)?' on':''}" data-kind="${esc(k)}">${esc(k)}</button>`).join('');
+  document.querySelectorAll('.chip.prov,.chip.kind').forEach(c=>c.onclick=()=>{c.classList.toggle('on');render();});
 }
 
 function current(){
@@ -300,38 +349,145 @@ function current(){
   return items;
 }
 
+/* ---- Series / season grouping ---- */
+const EP_RX = [
+  /^(?<s>.*?)[ ._-]+s(?<se>\d{1,2})[ ._-]*e(?<ep>\d{1,3})(?:[ ._-]*e\d{1,3})?\b/i,
+  /^(?<s>.*?)[ ._-]+(?<se>\d{1,2})x(?<ep>\d{1,3})\b/i,
+  /^(?<s>.*?)[ ._-]+season[ ._-]*(?<se>\d{1,2})[ ._-]*episode[ ._-]*(?<ep>\d{1,3})\b/i,
+];
+function cleanTitle(s){
+  return (s||'').replace(/[._]+/g,' ').replace(/\s+/g,' ').trim()
+    .replace(/[\s-]*\((19|20)\d{2}\)$/i,'').replace(/\s+(19|20)\d{2}$/i,'')
+    .replace(/[\s._-]+$/,'').trim();
+}
+function parseEp(name){
+  const base=(name||'').replace(/\.[a-z0-9]{2,4}$/i,'');
+  for(const rx of EP_RX){
+    const m=base.match(rx);
+    if(m&&m.groups&&m.groups.s){ const series=cleanTitle(m.groups.s);
+      if(series) return {series, season:+m.groups.se, episode:+m.groups.ep}; }
+  }
+  return null;
+}
+function buildGroups(items){
+  const series=new Map();     // name -> Map(season -> [items])
+  const loose=[];
+  for(const l of items){
+    const p=parseEp(l.name);
+    if(!p){ loose.push(l); continue; }
+    if(!series.has(p.series)) series.set(p.series,new Map());
+    const seasons=series.get(p.series);
+    if(!seasons.has(p.season)) seasons.set(p.season,[]);
+    l._ep=p.episode; seasons.get(p.season).push(l);
+  }
+  for(const [name,seasons] of [...series]){
+    let total=0; seasons.forEach(a=>total+=a.length);
+    if(total<2){ seasons.forEach(a=>loose.push(...a)); series.delete(name); }
+  }
+  return {series, loose};
+}
+function sumSize(items){ return items.reduce((a,l)=>a+(+l.size||0),0); }
+function selState(ids){
+  let sel=0; for(const id of ids) if(SELECTED.has(id)) sel++;
+  return sel===0?'none':sel===ids.length?'all':'some';
+}
+
 function render(){
   const items=current();
-  const totalSize=items.reduce((a,l)=>a+(+l.size||0),0);
+  const totalSize=sumSize(items);
   $('#meta').textContent=`${items.length} of ${ALL.length} links · ${human(totalSize)}`;
+  KEYIDS={};
   if(!items.length){
     $('#rows').innerHTML=`<div class="state"><b>Nothing here.</b>${
       ALL.length?'No links match your filters.':'Add API keys and hit Refresh to pull your links.'}</div>`;
     updateTray(); return;
   }
-  $('#rows').innerHTML=items.map(l=>{
-    const on=SELECTED.has(l.id);
-    return `<div class="row">
-      <div><input type="checkbox" data-id="${l.id}" ${on?'checked':''}/></div>
+  const grouping=$('#groupChk').checked;
+  let html='';
+  if(grouping){
+    const {series, loose}=buildGroups(items);
+    const names=[...series.keys()].sort((a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1);
+    for(const name of names) html+=seriesHtml(name, series.get(name));
+    for(const l of loose) html+=rowHtml(l,false);
+  }else{
+    for(const l of items) html+=rowHtml(l,false);
+  }
+  $('#rows').innerHTML=html;
+  updateTray();
+}
+
+function checkbox(state, cls, key){
+  // state: none|some|all ; renders a tri-state checkbox
+  const id='cb'+Math.random().toString(36).slice(2,8);
+  return `<input type="checkbox" class="${cls}" data-key="${esc(key||'')}" id="${id}"
+    ${state==='all'?'checked':''} data-state="${state}"/>`;
+}
+function delBtn(cls, key, enabled){
+  return `<button class="ico del ${cls}" data-key="${esc(key||'')}" title="Delete" ${enabled?'':'disabled'}>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>`;
+}
+
+function seriesHtml(name, seasons){
+  const seasonNums=[...seasons.keys()].sort((a,b)=>a-b);
+  const all=[]; seasons.forEach(a=>all.push(...a));
+  const ids=all.map(l=>l.id); const key='SER'+SEP+name; KEYIDS[key]=ids;
+  const canDel=all.some(l=>providerCan(l.provider,'delete'));
+  const open=EXPANDED.has(key);
+  const epCount=all.length;
+  let inner='';
+  if(open){
+    for(const sn of seasonNums) inner+=seasonHtml(name, sn, seasons.get(sn));
+  }
+  return `<div class="grp series ${open?'open':''}" data-key="${esc(key)}">
+      <span class="chev">${chev()}</span>
+      ${checkbox(selState(ids),'gsel',key)}
+      <div class="gname">${esc(name)}</div>
+      <div class="gmeta">${seasonNums.length} season${seasonNums.length!==1?'s':''} · ${epCount} ep</div>
+      <div class="gsize">${human(sumSize(all))}</div>
+      <div class="gact">${delBtn('gdel',key,canDel)}</div>
+    </div>
+    <div class="kids" ${open?'':'hidden'}>${inner}</div>`;
+}
+function seasonHtml(series, sn, eps){
+  const sorted=[...eps].sort((a,b)=>(a._ep||0)-(b._ep||0));
+  const ids=sorted.map(l=>l.id); const key='SEA'+SEP+series+SEP+sn; KEYIDS[key]=ids;
+  const canDel=sorted.some(l=>providerCan(l.provider,'delete'));
+  const open=EXPANDED.has(key);
+  let inner='';
+  if(open) for(const l of sorted) inner+=rowHtml(l,true);
+  return `<div class="grp season ${open?'open':''}" data-key="${esc(key)}">
+      <span class="chev">${chev()}</span>
+      ${checkbox(selState(ids),'gsel',key)}
+      <div class="gname">Season ${sn}</div>
+      <div class="gmeta">${sorted.length} ep</div>
+      <div class="gsize">${human(sumSize(sorted))}</div>
+      <div class="gact">${delBtn('gdel',key,canDel)}</div>
+    </div>
+    <div class="kids" ${open?'':'hidden'}>${inner}</div>`;
+}
+function chev(){ return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>`; }
+
+function rowHtml(l, isEp){
+  const on=SELECTED.has(l.id);
+  const canDel=providerCan(l.provider,'delete');
+  return `<div class="row ${isEp?'ep':''}">
+      <div><input type="checkbox" class="rsel" data-id="${esc(l.id)}" ${on?'checked':''}/></div>
       <div class="name">${esc(l.name)}<span class="sub">${esc(l.added?l.added.slice(0,10)+' · ':'')}${esc(l.host)}</span></div>
-      <div><span class="tag ${l.provider}">${l.provider.slice(0,2).toUpperCase()}</span></div>
+      <div><span class="tag ${esc(l.provider)}">${esc(l.provider.slice(0,2).toUpperCase())}</span></div>
       <div class="cell-mono col-host">${esc(l.host)}</div>
       <div class="cell-mono col-kind">${esc(l.kind)}</div>
       <div class="size">${human(l.size)}</div>
-      <div><button class="copy" data-copy="${l.id}" title="Copy direct link">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-      </button></div>
+      <div class="actions">
+        <button class="ico copy" data-copy="${esc(l.id)}" title="Copy direct link">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        ${delBtn('rdel','',canDel).replace('data-key=""','data-id="'+esc(l.id)+'"')}
+      </div>
     </div>`;
-  }).join('');
-  document.querySelectorAll('#rows input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
-    cb.checked?SELECTED.add(cb.dataset.id):SELECTED.delete(cb.dataset.id); updateTray();
-  });
-  document.querySelectorAll('.copy').forEach(b=>b.onclick=()=>copyOne(b));
-  updateTray();
 }
-function esc(s){ return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* ---- Resolve + copy ---- */
 async function resolve(ids){
   const d = await api('/api/resolve',{method:'POST',
     headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
@@ -348,33 +504,92 @@ async function copyOne(btn){
   finally{ btn.disabled=false; }
 }
 
+/* ---- Delete ---- */
+async function deleteIds(ids, label){
+  ids=[...new Set(ids)];
+  if(!ids.length) return;
+  const msg = `Delete ${ids.length} item${ids.length!==1?'s':''}${label?' from '+label:''}?\n\n`
+    + 'This removes them from your debrid account and cannot be undone. '
+    + 'Some providers delete the whole torrent/magnet (every file inside it).';
+  if(!confirm(msg)) return;
+  toast(`Deleting ${ids.length}…`);
+  let ok=0, fail=0;
+  try{
+    const d=await api('/api/delete',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
+    for(const id of ids){
+      const r=(d.deleted||{})[id];
+      if(r&&r.ok){ ok++; SELECTED.delete(id); } else fail++;
+    }
+  }catch(e){ toast('Delete failed: '+e.message,true); return; }
+  toast(`Deleted ${ok}${fail?` · ${fail} failed`:''}`, fail>0);
+  await loadLinks(true);
+}
+
+/* ---- Selection / tray ---- */
 function updateTray(){
   const n=SELECTED.size;
   $('#tray').classList.toggle('show',n>0);
   $('#selCount').textContent=n;
-  const size=ALL.filter(l=>SELECTED.has(l.id)).reduce((a,l)=>a+(+l.size||0),0);
+  const size=sumSize(ALL.filter(l=>SELECTED.has(l.id)));
   $('#selSize').textContent=n?'· '+human(size):'';
   const all=current(); const allSel=all.length && all.every(l=>SELECTED.has(l.id));
   $('#selAll').checked=allSel;
+  // tri-state group checkboxes
+  document.querySelectorAll('.gsel').forEach(cb=>{
+    const st=cb.dataset.state;
+    cb.indeterminate = st==='some';
+  });
 }
 $('#selAll').onchange=e=>{
   current().forEach(l=>e.target.checked?SELECTED.add(l.id):SELECTED.delete(l.id));
   render();
 };
 $('#clearSel').onclick=()=>{ SELECTED.clear(); render(); };
+$('#delSel').onclick=()=>deleteIds([...SELECTED],'selection');
+
+/* Event delegation for the rows/groups list */
+$('#rows').addEventListener('click', e=>{
+  const copyBtn=e.target.closest('.copy'); if(copyBtn){ copyOne(copyBtn); return; }
+  const rdel=e.target.closest('.rdel'); if(rdel){ if(!rdel.disabled) deleteIds([rdel.dataset.id],''); return; }
+  const gdel=e.target.closest('.gdel');
+  if(gdel){ if(!gdel.disabled){ const label = gdel.dataset.key.startsWith('SEA')?'this season':'this series';
+    deleteIds(KEYIDS[gdel.dataset.key]||[], label); } return; }
+  if(e.target.closest('input,button')) return;   // checkbox handled by change
+  const grp=e.target.closest('.grp');
+  if(grp){ const k=grp.dataset.key; EXPANDED.has(k)?EXPANDED.delete(k):EXPANDED.add(k); render(); }
+});
+$('#rows').addEventListener('change', e=>{
+  const rsel=e.target.closest('.rsel');
+  if(rsel){ rsel.checked?SELECTED.add(rsel.dataset.id):SELECTED.delete(rsel.dataset.id); updateTray(); return; }
+  const gsel=e.target.closest('.gsel');
+  if(gsel){ const ids=KEYIDS[gsel.dataset.key]||[];
+    ids.forEach(id=>gsel.checked?SELECTED.add(id):SELECTED.delete(id)); render(); }
+});
+
 $('#copyJd').onclick=async()=>{
   const ids=[...SELECTED]; if(!ids.length) return;
   const btn=$('#copyJd'); btn.disabled=true; btn.textContent='Resolving…';
   try{
     const r=await resolve(ids);
     const urls=[], fails=[];
-    ids.forEach(id=>{ const x=r[id]; x.url?urls.push(x.url):fails.push(id); });
+    ids.forEach(id=>{ const x=r[id]||{}; x.url?urls.push(x.url):fails.push(id); });
     if(urls.length) await clip(urls.join('\n'));
     toast(`Copied ${urls.length} link${urls.length!==1?'s':''}`+
       (fails.length?` · ${fails.length} failed`:'')+' — paste into JD2 (or it auto-catches)', fails.length>0);
   }catch(e){ toast('Failed: '+e.message,true); }
   finally{ btn.disabled=false;
     btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> Copy for JD2`; }
+};
+
+/* Expand / collapse every group */
+$('#expandAll').onclick=()=>{
+  const items=current(); const {series}=buildGroups(items);
+  const allKeys=[]; for(const [name,seasons] of series){ allKeys.push('SER'+SEP+name);
+    for(const sn of seasons.keys()) allKeys.push('SEA'+SEP+name+SEP+sn); }
+  const anyClosed=allKeys.some(k=>!EXPANDED.has(k));
+  EXPANDED = anyClosed ? new Set(allKeys) : new Set();
+  render();
 };
 
 function promptKey(force){
@@ -398,11 +613,11 @@ async function openConfig(){
       : `<span class="badge none">not set</span>`;
     const canRemove=s.configured && s.source==='stored';
     return `<div class="cfg-row">
-      <label>${label} ${badge}</label>
+      <label>${esc(label)} ${badge}</label>
       <div class="cfg-input">
-        <input type="password" data-p="${id}" autocomplete="off" spellcheck="false"
+        <input type="password" data-p="${esc(id)}" autocomplete="off" spellcheck="false"
           placeholder="${s.configured?'•••••• unchanged':'paste API key'}"/>
-        <button class="ghost cfg-rm" data-rm="${id}" ${canRemove?'':'disabled'}>Remove</button>
+        <button class="ghost cfg-rm" data-rm="${esc(id)}" ${canRemove?'':'disabled'}>Remove</button>
       </div>
     </div>`;
   }).join('');
@@ -435,13 +650,14 @@ $('#cfgSave').onclick=saveConfig;
 $('#cfgModal').onclick=e=>{ if(e.target===$('#cfgModal')) closeConfig(); };
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#cfgModal').hidden) closeConfig(); });
 $('#refresh').onclick=()=>loadLinks(true);
+$('#groupChk').onchange=render;
 let deb; $('#q').oninput=()=>{clearTimeout(deb);deb=setTimeout(render,120);};
 $('#sort').onchange=render; $('#order').onchange=render;
 
 (async()=>{
   try{ await loadProviders(); await loadLinks(false); }
   catch(e){ if(e.message!=='unauthorized')
-    $('#rows').innerHTML=`<div class="state"><b>Couldn't load.</b>${e.message}</div>`; }
+    $('#rows').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
 })();
 </script>
 </body>

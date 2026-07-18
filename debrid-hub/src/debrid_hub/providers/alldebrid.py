@@ -19,6 +19,7 @@ class AllDebrid(Provider):
     """
 
     name = "alldebrid"
+    capabilities = ("delete",)
 
     def __init__(self, client: httpx.AsyncClient, apikey: str) -> None:
         super().__init__(client)
@@ -49,7 +50,11 @@ class AllDebrid(Provider):
                         kind="saved",
                         added=unix_to_iso(l.get("date")),
                         direct_url=None,
-                        resolve_hint={"k": "unlock", "u": l["link"]},
+                        resolve_hint={
+                            "k": "unlock",
+                            "u": l["link"],
+                            "del": {"t": "link", "link": l["link"]},
+                        },
                     )
                 )
         except Exception:
@@ -72,7 +77,13 @@ class AllDebrid(Provider):
                             kind="magnet",
                             added=unix_to_iso(m.get("completionDate") or m.get("uploadDate")),
                             direct_url=None,
-                            resolve_hint={"k": "unlock", "u": f["link"]},
+                            # AllDebrid can only delete a whole magnet, not one
+                            # file inside it -- deleting removes every sibling too.
+                            resolve_hint={
+                                "k": "unlock",
+                                "u": f["link"],
+                                "del": {"t": "magnet", "id": m.get("id")},
+                            },
                         )
                     )
         except Exception:
@@ -83,6 +94,15 @@ class AllDebrid(Provider):
     async def resolve(self, hint: dict) -> str:
         data = await self._get("/link/unlock", link=hint["u"])
         return data["link"]
+
+    async def delete(self, hint: dict) -> None:
+        d = hint.get("del") or {}
+        if d.get("t") == "link":
+            await self._get("/user/links/delete", link=d["link"])
+        elif d.get("t") == "magnet" and d.get("id") is not None:
+            await self._get("/magnet/delete", id=d["id"])
+        else:
+            raise ValueError("alldebrid: this link cannot be deleted")
 
     async def health(self) -> bool:
         try:

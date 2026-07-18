@@ -16,6 +16,7 @@ class RealDebrid(Provider):
     """
 
     name = "realdebrid"
+    capabilities = ("delete",)
 
     def __init__(self, client: httpx.AsyncClient, token: str) -> None:
         super().__init__(client)
@@ -45,7 +46,11 @@ class RealDebrid(Provider):
                         kind="download",
                         added=d.get("generated"),
                         direct_url=d.get("download"),
-                        resolve_hint={"k": "direct", "u": d.get("download")},
+                        resolve_hint={
+                            "k": "direct",
+                            "u": d.get("download"),
+                            "del": {"id": d.get("id")},
+                        },
                     )
                 )
             if len(data) < 100:
@@ -65,6 +70,16 @@ class RealDebrid(Provider):
             r.raise_for_status()
             return r.json()["download"]
         raise ValueError("real-debrid: unresolvable link")
+
+    async def delete(self, hint: dict) -> None:
+        did = (hint.get("del") or {}).get("id")
+        if not did:
+            raise ValueError("real-debrid: this link has no delete id")
+        r = await self._client.delete(
+            f"{BASE}/downloads/delete/{did}", headers=self._headers
+        )
+        if r.status_code not in (200, 202, 204):
+            r.raise_for_status()
 
     async def health(self) -> bool:
         try:

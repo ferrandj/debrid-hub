@@ -129,6 +129,42 @@ def resolve(link_id: str = typer.Argument(..., help="Opaque link id from `list -
     print(asyncio.run(run()))
 
 
+@app.command("rm")
+def rm_cmd(
+    link_ids: list[str] = typer.Argument(..., help="One or more link ids from `list --json`."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+):
+    """Delete link(s) from the provider account. Irreversible; some providers
+    delete the whole torrent/magnet (every file inside it)."""
+    if not yes:
+        console.print(f"[yellow]About to delete {len(link_ids)} link(s) from your provider account(s).[/]")
+        if not typer.confirm("Continue?"):
+            raise typer.Exit(1)
+
+    async def run():
+        a = _agg()
+        try:
+            results: dict[str, str | None] = {}
+            for lid in link_ids:
+                try:
+                    await a.delete(lid)
+                    results[lid] = None
+                except Exception as exc:  # noqa: BLE001
+                    results[lid] = f"{type(exc).__name__}: {exc}"
+            return results
+        finally:
+            await a.aclose()
+
+    results = asyncio.run(run())
+    ok = sum(1 for v in results.values() if v is None)
+    for lid, err in results.items():
+        if err:
+            console.print(f"[red]✗[/] {lid[:16]}… {err}", highlight=False)
+    console.print(f"[green]deleted {ok}/{len(link_ids)}[/]")
+    if ok != len(link_ids):
+        raise typer.Exit(1)
+
+
 config_app = typer.Typer(
     help="Manage provider API keys, stored encrypted on disk.",
     no_args_is_help=True,
