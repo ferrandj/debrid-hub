@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Debrid Hub</title>
+<style>
+  :root{
+    --ink:#0E1116; --panel:#151A21; --panel2:#1B222B; --line:#263039;
+    --text:#D6DEE8; --muted:#7A8794; --accent:#35D0BA; --accent-dim:#1c6d61;
+    --rd:#4C8DFF; --ad:#F5A623; --tb:#A472FF; --mock:#7A8794; --danger:#ff6b6b;
+    --ui:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--ink);color:var(--text);font-family:var(--ui);
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    padding-bottom:88px;
+  }
+  a{color:var(--accent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+
+  /* Topbar */
+  header{position:sticky;top:0;z-index:20;background:rgba(14,17,22,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top{display:flex;align-items:center;gap:16px;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.2px;font-size:16px}
+  .glyph{width:22px;height:22px;border-radius:6px;background:
+    linear-gradient(135deg,var(--accent),var(--accent-dim));
+    display:grid;place-items:center;color:#08110f;font-weight:800;font-family:var(--mono)}
+  .brand small{color:var(--muted);font-weight:400;font-size:12px}
+  .dots{display:flex;gap:12px;margin-left:6px}
+  .dot{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .dot i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+  .dot.up i{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .dot.down i{background:var(--danger)}
+  .spacer{flex:1}
+  .iconbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    height:34px;padding:0 12px;border-radius:8px;cursor:pointer;font-size:13px;
+    display:inline-flex;align-items:center;gap:7px}
+  .iconbtn:hover{border-color:var(--accent-dim)}
+  .iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* Toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px 0 12px}
+  .search{flex:1;min-width:220px;position:relative}
+  .search input{width:100%;height:40px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;color:var(--text);padding:0 14px 0 38px;font-size:14px;font-family:var(--mono)}
+  .search input:focus{outline:none;border-color:var(--accent-dim)}
+  .search svg{position:absolute;left:12px;top:11px;opacity:.5}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    height:30px;padding:0 12px;border-radius:999px;cursor:pointer;font-size:12px;
+    text-transform:capitalize;font-family:var(--mono)}
+  .chip.on{color:var(--ink);background:var(--accent);border-color:var(--accent);font-weight:600}
+  .chip.prov.on{background:currentColor}
+  select{height:34px;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;padding:0 8px;font-size:13px}
+  select:focus{outline:none;border-color:var(--accent-dim)}
+
+  /* Manifest */
+  .meta{color:var(--muted);font-size:12px;padding:2px 2px 10px;font-family:var(--mono)}
+  .manifest{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+  .row{display:grid;grid-template-columns:34px 1fr 92px 130px 78px 96px 40px;
+    align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row.head{position:sticky;top:60px;background:var(--panel2);color:var(--muted);
+    font-size:11px;text-transform:uppercase;letter-spacing:.6px;z-index:5}
+  .row:not(.head):hover{background:var(--panel2)}
+  .name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .name .sub{display:block;color:var(--muted);font-size:11px;font-family:var(--mono);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;
+    text-align:center;color:#08110f}
+  .tag.realdebrid{background:var(--rd)} .tag.alldebrid{background:var(--ad)}
+  .tag.torbox{background:var(--tb)} .tag.mock{background:var(--mock)}
+  .cell-mono{font-family:var(--mono);font-size:12px;color:var(--muted);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .size{font-family:var(--mono);font-size:12px;text-align:right;color:var(--text)}
+  input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+  .copy{background:transparent;border:1px solid var(--line);color:var(--muted);
+    width:30px;height:30px;border-radius:7px;cursor:pointer;display:grid;place-items:center}
+  .copy:hover{color:var(--accent);border-color:var(--accent-dim)}
+  .copy.ok{color:var(--accent);border-color:var(--accent)}
+  .copy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  /* States */
+  .state{padding:56px 20px;text-align:center;color:var(--muted)}
+  .state b{color:var(--text);display:block;margin-bottom:6px;font-size:15px}
+  .errbar{margin:10px 0;padding:10px 14px;border:1px solid #4a2b2b;background:#231819;
+    border-radius:10px;color:#f2b8b8;font-size:12px;font-family:var(--mono)}
+
+  /* JD2 tray */
+  .tray{position:fixed;left:0;right:0;bottom:0;z-index:30;transform:translateY(120%);
+    transition:transform .22s ease;background:linear-gradient(180deg,#12171e,#0d1116);
+    border-top:1px solid var(--accent-dim)}
+  .tray.show{transform:none}
+  .tray .wrap{display:flex;align-items:center;gap:16px;height:72px}
+  .tray .info{font-family:var(--mono);font-size:13px}
+  .tray .info b{color:var(--accent)}
+  .tray .info span{color:var(--muted)}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--muted);
+    height:40px;padding:0 14px;border-radius:9px;cursor:pointer}
+  .ghost:hover{color:var(--text)}
+  .primary{background:var(--accent);border:none;color:#08110f;height:40px;padding:0 18px;
+    border-radius:9px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+  .primary:hover{filter:brightness(1.06)}
+  .primary:disabled{opacity:.5;cursor:default}
+  .primary:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+  /* Toast */
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;
+    transition:.2s;z-index:40;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+  .toast.err{border-color:#5a2b2b;color:#f2b8b8}
+
+  @media (max-width:760px){
+    .row{grid-template-columns:30px 1fr 80px 84px 36px}
+    .row .col-host,.row .col-kind{display:none}
+    .dots{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <div class="brand"><span class="glyph">▟</span>Debrid&nbsp;Hub
+      <small>link manifest → JDownloader2</small></div>
+    <div class="dots" id="dots"></div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="refresh" title="Re-fetch from providers">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
+    <button class="iconbtn" id="keybtn" title="Set API key" style="display:none">⚙</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" placeholder="search filename or host…" autocomplete="off" spellcheck="false"/>
+    </div>
+    <div class="chips" id="provChips"></div>
+    <div class="chips" id="kindChips"></div>
+    <select id="sort" title="Sort by">
+      <option value="name">name</option><option value="size">size</option>
+      <option value="added">added</option><option value="host">host</option>
+      <option value="provider">provider</option><option value="kind">kind</option>
+    </select>
+    <select id="order" title="Direction">
+      <option value="asc">▲ asc</option><option value="desc">▼ desc</option>
+    </select>
+  </div>
+
+  <div class="meta" id="meta"></div>
+  <div id="errors"></div>
+
+  <div class="manifest">
+    <div class="row head">
+      <div><input type="checkbox" id="selAll" title="Select all shown"/></div>
+      <div>name</div><div>provider</div><div class="col-host">host</div>
+      <div class="col-kind">kind</div><div style="text-align:right">size</div><div></div>
+    </div>
+    <div id="rows"></div>
+  </div>
+</div>
+
+<div class="tray" id="tray">
+  <div class="wrap">
+    <div class="info"><b id="selCount">0</b> selected <span id="selSize"></span></div>
+    <div class="spacer"></div>
+    <button class="ghost" id="clearSel">Clear</button>
+    <button class="primary" id="copyJd">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      Copy for JD2</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let ALL = [], SELECTED = new Set(), AUTH = false;
+const KEY = () => localStorage.getItem('debridhub_key') || '';
+
+function headers(){ const h={}; if(AUTH && KEY()) h['Authorization']='Bearer '+KEY(); return h; }
+async function api(path, opts={}){
+  const r = await fetch(path, {...opts, headers:{...headers(), ...(opts.headers||{})}});
+  if(r.status===401){ AUTH=true; promptKey(true); throw new Error('unauthorized'); }
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function human(n){ n=+n||0; const u=['B','KB','MB','GB','TB']; let i=0;
+  while(n>=1024&&i<u.length-1){n/=1024;i++;} return (i?n.toFixed(1):n.toFixed(0))+' '+u[i]; }
+function toast(msg, err){ const t=$('#toast'); t.textContent=msg;
+  t.className='toast show'+(err?' err':''); clearTimeout(t._h);
+  t._h=setTimeout(()=>t.className='toast',2200); }
+async function clip(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){ const a=document.createElement('textarea'); a.value=text;
+    document.body.appendChild(a); a.select();
+    const ok=document.execCommand('copy'); a.remove(); return ok; }
+}
+
+async function loadProviders(){
+  const d = await api('/api/providers');
+  AUTH = d.auth_required;
+  $('#keybtn').style.display = AUTH ? '' : 'none';
+  $('#dots').innerHTML = d.providers.map(p =>
+    `<span class="dot ${p.healthy?'up':'down'}"><i></i>${p.name}</span>`).join('') ||
+    '<span class="dot">no providers configured</span>';
+}
+
+async function loadLinks(refresh){
+  $('#rows').innerHTML = `<div class="state">loading…</div>`;
+  const d = await api('/api/links'+(refresh?'?refresh=true':''));
+  ALL = d.links;
+  renderErrors(d.errors);
+  buildFilters();
+  render();
+}
+function renderErrors(errs){
+  const keys = Object.keys(errs||{});
+  $('#errors').innerHTML = keys.length
+    ? `<div class="errbar">Couldn't reach: ${keys.map(k=>k+' ('+errs[k]+')').join(' · ')}</div>` : '';
+}
+
+function buildFilters(){
+  const provs=[...new Set(ALL.map(l=>l.provider))].sort();
+  const kinds=[...new Set(ALL.map(l=>l.kind))].sort();
+  const pc={realdebrid:'var(--rd)',alldebrid:'var(--ad)',torbox:'var(--tb)',mock:'var(--mock)'};
+  $('#provChips').innerHTML = provs.map(p=>
+    `<button class="chip prov" data-prov="${p}" style="color:${pc[p]||'var(--muted)'}">${p}</button>`).join('');
+  $('#kindChips').innerHTML = kinds.map(k=>
+    `<button class="chip kind" data-kind="${k}">${k}</button>`).join('');
+  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{c.classList.toggle('on');render();});
+}
+
+function current(){
+  const q=$('#q').value.trim().toLowerCase();
+  const provs=[...document.querySelectorAll('.chip.prov.on')].map(c=>c.dataset.prov);
+  const kinds=[...document.querySelectorAll('.chip.kind.on')].map(c=>c.dataset.kind);
+  let items=ALL.filter(l=>
+    (!provs.length||provs.includes(l.provider)) &&
+    (!kinds.length||kinds.includes(l.kind)) &&
+    (!q || (l.name||'').toLowerCase().includes(q) || (l.host||'').toLowerCase().includes(q)));
+  const s=$('#sort').value, asc=$('#order').value==='asc';
+  items.sort((a,b)=>{
+    let x=a[s]??'', y=b[s]??'';
+    if(s==='size'){x=+x;y=+y;} else {x=(''+x).toLowerCase();y=(''+y).toLowerCase();}
+    return (x<y?-1:x>y?1:0)*(asc?1:-1);
+  });
+  return items;
+}
+
+function render(){
+  const items=current();
+  const totalSize=items.reduce((a,l)=>a+(+l.size||0),0);
+  $('#meta').textContent=`${items.length} of ${ALL.length} links · ${human(totalSize)}`;
+  if(!items.length){
+    $('#rows').innerHTML=`<div class="state"><b>Nothing here.</b>${
+      ALL.length?'No links match your filters.':'Add API keys and hit Refresh to pull your links.'}</div>`;
+    updateTray(); return;
+  }
+  $('#rows').innerHTML=items.map(l=>{
+    const on=SELECTED.has(l.id);
+    return `<div class="row">
+      <div><input type="checkbox" data-id="${l.id}" ${on?'checked':''}/></div>
+      <div class="name">${esc(l.name)}<span class="sub">${esc(l.added?l.added.slice(0,10)+' · ':'')}${esc(l.host)}</span></div>
+      <div><span class="tag ${l.provider}">${l.provider.slice(0,2).toUpperCase()}</span></div>
+      <div class="cell-mono col-host">${esc(l.host)}</div>
+      <div class="cell-mono col-kind">${esc(l.kind)}</div>
+      <div class="size">${human(l.size)}</div>
+      <div><button class="copy" data-copy="${l.id}" title="Copy direct link">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </button></div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#rows input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
+    cb.checked?SELECTED.add(cb.dataset.id):SELECTED.delete(cb.dataset.id); updateTray();
+  });
+  document.querySelectorAll('.copy').forEach(b=>b.onclick=()=>copyOne(b));
+  updateTray();
+}
+function esc(s){ return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function resolve(ids){
+  const d = await api('/api/resolve',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
+  return d.resolved;
+}
+async function copyOne(btn){
+  const id=btn.dataset.copy; btn.disabled=true;
+  try{
+    const r=await resolve([id]); const res=r[id];
+    if(res.error) throw new Error(res.error);
+    await clip(res.url); btn.classList.add('ok');
+    setTimeout(()=>btn.classList.remove('ok'),1200); toast('Link copied');
+  }catch(e){ toast('Resolve failed: '+e.message,true); }
+  finally{ btn.disabled=false; }
+}
+
+function updateTray(){
+  const n=SELECTED.size;
+  $('#tray').classList.toggle('show',n>0);
+  $('#selCount').textContent=n;
+  const size=ALL.filter(l=>SELECTED.has(l.id)).reduce((a,l)=>a+(+l.size||0),0);
+  $('#selSize').textContent=n?'· '+human(size):'';
+  const all=current(); const allSel=all.length && all.every(l=>SELECTED.has(l.id));
+  $('#selAll').checked=allSel;
+}
+$('#selAll').onchange=e=>{
+  current().forEach(l=>e.target.checked?SELECTED.add(l.id):SELECTED.delete(l.id));
+  render();
+};
+$('#clearSel').onclick=()=>{ SELECTED.clear(); render(); };
+$('#copyJd').onclick=async()=>{
+  const ids=[...SELECTED]; if(!ids.length) return;
+  const btn=$('#copyJd'); btn.disabled=true; btn.textContent='Resolving…';
+  try{
+    const r=await resolve(ids);
+    const urls=[], fails=[];
+    ids.forEach(id=>{ const x=r[id]; x.url?urls.push(x.url):fails.push(id); });
+    if(urls.length) await clip(urls.join('\n'));
+    toast(`Copied ${urls.length} link${urls.length!==1?'s':''}`+
+      (fails.length?` · ${fails.length} failed`:'')+' — paste into JD2 (or it auto-catches)', fails.length>0);
+  }catch(e){ toast('Failed: '+e.message,true); }
+  finally{ btn.disabled=false;
+    btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> Copy for JD2`; }
+};
+
+function promptKey(force){
+  const k=prompt('API key for Debrid Hub'+(force?' (required)':''), KEY());
+  if(k!==null){ localStorage.setItem('debridhub_key',k.trim()); location.reload(); }
+}
+$('#keybtn').onclick=()=>promptKey(false);
+$('#refresh').onclick=()=>loadLinks(true);
+let deb; $('#q').oninput=()=>{clearTimeout(deb);deb=setTimeout(render,120);};
+$('#sort').onchange=render; $('#order').onchange=render;
+
+(async()=>{
+  try{ await loadProviders(); await loadLinks(false); }
+  catch(e){ if(e.message!=='unauthorized')
+    $('#rows').innerHTML=`<div class="state"><b>Couldn't load.</b>${e.message}</div>`; }
+})();
+</script>
+</body>
+</html>
