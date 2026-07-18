@@ -40,12 +40,33 @@ debrid-hub serve                     # http://localhost:8080
 | AllDebrid | https://alldebrid.com/apikeys/ |
 | TorBox | https://torbox.app/settings → Developer / API |
 
-Set only the ones you use; empty vars disable that provider.
+Set only the ones you use; empty vars disable that provider. You don't have to use
+env vars at all — you can add keys later from the **UI, CLI, or API** (see below).
+
+## Configuring keys (UI / CLI / API)
+
+Keys can come from env vars **or** be saved at runtime, **encrypted at rest**
+(Fernet / AES) under `DEBRID_HUB_DATA_DIR`. A key saved this way overrides the
+matching env var; removing it falls back to the env var. Providers rebuild live —
+no restart needed.
+
+- **UI**: click **⚙ Keys**, paste a key per provider, Save.
+- **CLI**: `debrid-hub config set realdebrid <key>` (omit the key to be prompted
+  hidden), `debrid-hub config list`, `debrid-hub config remove <provider>`.
+- **API**: `PUT /api/config` with `{"realdebrid":"…"}` (see REST table).
+
+The store is encrypted with a master key from `DEBRID_HUB_SECRET_KEY`, or an
+auto-generated `secret.key` kept alongside the store. In Docker, mount a volume at
+`DEBRID_HUB_DATA_DIR` (the compose file does this) so keys survive a recreate.
+Endpoints and CLI never echo a stored key back — only whether one is set.
 
 ## CLI
 
 ```bash
 debrid-hub providers                 # credential health per service
+debrid-hub config set torbox <key>   # save a key (encrypted); omit key to prompt
+debrid-hub config list               # which providers are set + source
+debrid-hub config remove torbox      # drop a stored key
 debrid-hub list                      # table of everything
 debrid-hub list -s ubuntu --sort size --order desc
 debrid-hub list -p torbox -k torrent
@@ -63,6 +84,9 @@ Base URL `http://host:8080`. If `DEBRID_HUB_API_KEY` is set, send `Authorization
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/providers` | configured providers + health |
+| GET | `/api/config` | which provider keys are set + source (never the value) |
+| PUT | `/api/config` | body `{"realdebrid":"…"}` → save key(s), encrypted; `""` clears |
+| DELETE | `/api/config/{provider}` | remove a stored key |
 | GET | `/api/links` | aggregated list; query: `search, provider, kind, sort, order, refresh` |
 | POST | `/api/resolve` | body `{"ids":["…"]}` (or `{"id":"…"}`) → direct URLs |
 | GET | `/health` | liveness |

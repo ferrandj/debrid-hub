@@ -6,13 +6,23 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    volumes:
+      # Persists keys added via the UI/CLI/API (encrypted) + the auto-generated
+      # master key. Without this, they are lost when the container is recreated.
+      - debrid-hub-data:/data
     environment:
-      # Fill in the services you use; leave the rest empty.
+      # Optional: seed keys here, or leave empty and add them in the UI (⚙ Keys).
       DEBRID_REALDEBRID_TOKEN: "${DEBRID_REALDEBRID_TOKEN:-}"
       DEBRID_ALLDEBRID_APIKEY: "${DEBRID_ALLDEBRID_APIKEY:-}"
       DEBRID_TORBOX_APIKEY: "${DEBRID_TORBOX_APIKEY:-}"
       # Optional: protect the exposed API/UI with a bearer token.
       DEBRID_HUB_API_KEY: "${DEBRID_HUB_API_KEY:-}"
       DEBRID_HUB_CACHE_TTL: "60"
+      DEBRID_HUB_DATA_DIR: "/data"
+      # Optional: pin the encryption master key (else auto-generated in /data).
+      DEBRID_HUB_SECRET_KEY: "${DEBRID_HUB_SECRET_KEY:-}"
       # DEBRID_HUB_MOCK: "1"   # demo data, no keys needed
     # env_file: .env           # alternative to the block above
+
+volumes:
+  debrid-hub-data:

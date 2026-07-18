@@ -12,6 +12,7 @@ from .providers.base import Provider
 from .providers.mock import Mock
 from .providers.realdebrid import RealDebrid
 from .providers.torbox import TorBox
+from .store import SecretStore, credential_status
 
 _SORT_KEYS = {
     "name": lambda l: (l.name or "").lower(),
@@ -44,25 +45,58 @@ def filter_sort(
 
 
 class Aggregator:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, store: SecretStore | None = None) -> None:
         self.settings = settings
+        self._store = store or SecretStore(settings.data_dir, settings.secret_key)
         self._client = httpx.AsyncClient(timeout=settings.request_timeout)
         self._providers: dict[str, Provider] = {}
         self._cache: list[DebridLink] | None = None
         self._cache_at = 0.0
         self.errors: dict[str, str] = {}
+        self.store_error: str = ""
         self._build()
 
     def _build(self) -> None:
         s = self.settings
-        if s.realdebrid_token:
-            self._providers["realdebrid"] = RealDebrid(self._client, s.realdebrid_token)
-        if s.alldebrid_apikey:
-            self._providers["alldebrid"] = AllDebrid(self._client, s.alldebrid_apikey)
-        if s.torbox_apikey:
-            self._providers["torbox"] = TorBox(self._client, s.torbox_apikey)
+        self._providers.clear()
+        try:
+            stored = self._store.load()
+            self.store_error = ""
+        except Exception as exc:  # noqa: BLE001 — surface, don't crash startup
+            stored = {}
+            self.store_error = str(exc)
+        # A stored key overrides its env var; deleting it falls back to env.
+        realdebrid = stored.get("realdebrid") or s.realdebrid_token
+        alldebrid = stored.get("alldebrid") or s.alldebrid_apikey
+        torbox = stored.get("torbox") or s.torbox_apikey
+        if realdebrid:
+            self._providers["realdebrid"] = RealDebrid(self._client, realdebrid)
+        if alldebrid:
+            self._providers["alldebrid"] = AllDebrid(self._client, alldebrid)
+        if torbox:
+            self._providers["torbox"] = TorBox(self._client, torbox)
         if s.enable_mock:
             self._providers["mock"] = Mock(self._client)
+
+    def reload(self) -> None:
+        """Rebuild providers from the current credentials and drop the cache."""
+        self._build()
+        self._cache = None
+        self._cache_at = 0.0
+
+    def credential_status(self) -> list[dict]:
+        """Per-provider config state (configured?, source), never the key value."""
+        return credential_status(self.settings)
+
+    def set_credentials(self, updates: dict[str, str]) -> None:
+        """Store one or more provider keys (encrypted) and rebuild providers."""
+        self._store.set_many(updates)
+        self.reload()
+
+    def delete_credential(self, provider: str) -> None:
+        """Remove a stored provider key and rebuild providers."""
+        self._store.delete(provider)
+        self.reload()
 
     @property
     def provider_names(self) -> list[str]:

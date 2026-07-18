@@ -118,6 +118,29 @@
   .toast.show{opacity:1;transform:translateX(-50%)}
   .toast.err{border-color:#5a2b2b;color:#f2b8b8}
 
+  /* Config modal */
+  .modal{position:fixed;inset:0;z-index:50;background:rgba(6,9,12,.66);
+    backdrop-filter:blur(3px);display:grid;place-items:center;padding:18px}
+  .modal[hidden]{display:none}
+  .modal-card{width:100%;max-width:460px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .modal-head b{font-size:16px}
+  .modal-note{color:var(--muted);font-size:12px;margin:0 0 16px;line-height:1.5}
+  .cfg-row{margin-bottom:14px}
+  .cfg-row label{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px}
+  .cfg-input{display:flex;gap:8px}
+  .cfg-input input{flex:1;height:36px;background:var(--ink);border:1px solid var(--line);
+    border-radius:8px;color:var(--text);padding:0 12px;font-family:var(--mono);font-size:13px}
+  .cfg-input input:focus{outline:none;border-color:var(--accent-dim)}
+  .badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;
+    text-transform:uppercase;letter-spacing:.4px}
+  .badge.stored{background:var(--accent-dim);color:#d9fff8}
+  .badge.env{background:#3a3320;color:var(--ad)}
+  .badge.none{background:var(--panel2);color:var(--muted)}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+  .cfg-rm[disabled]{opacity:.35;cursor:default}
+
   @media (max-width:760px){
     .row{grid-template-columns:30px 1fr 80px 84px 36px}
     .row .col-host,.row .col-kind{display:none}
@@ -136,7 +159,8 @@
     <button class="iconbtn" id="refresh" title="Re-fetch from providers">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
-    <button class="iconbtn" id="keybtn" title="Set API key" style="display:none">⚙</button>
+    <button class="iconbtn" id="settings" title="Provider API keys">⚙ Keys</button>
+    <button class="iconbtn" id="keybtn" title="Set access key" style="display:none">🔒</button>
   </div>
 </header>
 
@@ -181,6 +205,21 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
       Copy for JD2</button>
+  </div>
+</div>
+
+<div class="modal" id="cfgModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><b>Provider API keys</b>
+      <button class="iconbtn" id="cfgClose" title="Close">✕</button></div>
+    <p class="modal-note">Stored <b>encrypted</b> on the server. Leave a field blank to
+      keep the current key; use Remove to clear a stored one. A key set here overrides
+      the matching environment variable.</p>
+    <div id="cfgFields"></div>
+    <div class="modal-actions">
+      <button class="ghost" id="cfgCancel">Cancel</button>
+      <button class="primary" id="cfgSave">Save keys</button>
+    </div>
   </div>
 </div>
 
@@ -339,10 +378,62 @@ $('#copyJd').onclick=async()=>{
 };
 
 function promptKey(force){
-  const k=prompt('API key for Debrid Hub'+(force?' (required)':''), KEY());
+  const k=prompt('Access key for Debrid Hub'+(force?' (required)':''), KEY());
   if(k!==null){ localStorage.setItem('debridhub_key',k.trim()); location.reload(); }
 }
 $('#keybtn').onclick=()=>promptKey(false);
+
+/* ---- Provider API keys (encrypted server-side) ---- */
+const PROVIDERS=[['realdebrid','Real-Debrid'],['alldebrid','AllDebrid'],['torbox','TorBox']];
+async function openConfig(){
+  let data;
+  try{ data=await api('/api/config'); }
+  catch(e){ if(e.message!=='unauthorized') toast('Config load failed: '+e.message,true); return; }
+  const st={}; (data.providers||[]).forEach(p=>st[p.provider]=p);
+  if(data.store_error) toast(data.store_error,true);
+  $('#cfgFields').innerHTML=PROVIDERS.map(([id,label])=>{
+    const s=st[id]||{};
+    const badge=s.configured
+      ? `<span class="badge ${s.source}">${s.source==='env'?'env':'set'}</span>`
+      : `<span class="badge none">not set</span>`;
+    const canRemove=s.configured && s.source==='stored';
+    return `<div class="cfg-row">
+      <label>${label} ${badge}</label>
+      <div class="cfg-input">
+        <input type="password" data-p="${id}" autocomplete="off" spellcheck="false"
+          placeholder="${s.configured?'•••••• unchanged':'paste API key'}"/>
+        <button class="ghost cfg-rm" data-rm="${id}" ${canRemove?'':'disabled'}>Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.cfg-rm').forEach(b=>b.onclick=()=>b.disabled||removeKey(b.dataset.rm));
+  $('#cfgModal').hidden=false;
+}
+function closeConfig(){ $('#cfgModal').hidden=true; }
+async function saveConfig(){
+  const body={};
+  document.querySelectorAll('#cfgFields input').forEach(i=>{const v=i.value.trim(); if(v) body[i.dataset.p]=v;});
+  if(!Object.keys(body).length){ closeConfig(); return; }
+  const btn=$('#cfgSave'); btn.disabled=true;
+  try{
+    await api('/api/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    toast('Keys saved (encrypted)'); closeConfig();
+    await loadProviders(); await loadLinks(true);
+  }catch(e){ if(e.message!=='unauthorized') toast('Save failed: '+e.message,true); }
+  finally{ btn.disabled=false; }
+}
+async function removeKey(p){
+  if(!confirm('Remove the stored '+p+' key?')) return;
+  try{
+    await api('/api/config/'+p,{method:'DELETE'}); toast(p+' removed');
+    await openConfig(); await loadProviders(); await loadLinks(true);
+  }catch(e){ if(e.message!=='unauthorized') toast('Remove failed: '+e.message,true); }
+}
+$('#settings').onclick=openConfig;
+$('#cfgClose').onclick=closeConfig; $('#cfgCancel').onclick=closeConfig;
+$('#cfgSave').onclick=saveConfig;
+$('#cfgModal').onclick=e=>{ if(e.target===$('#cfgModal')) closeConfig(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#cfgModal').hidden) closeConfig(); });
 $('#refresh').onclick=()=>loadLinks(true);
 let deb; $('#q').oninput=()=>{clearTimeout(deb);deb=setTimeout(render,120);};
 $('#sort').onchange=render; $('#order').onchange=render;

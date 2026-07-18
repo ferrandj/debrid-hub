@@ -9,6 +9,7 @@ from rich.table import Table
 
 from .aggregator import Aggregator, filter_sort
 from .config import get_settings
+from .store import MANAGED, SecretStore, credential_status
 
 app = typer.Typer(
     add_completion=False,
@@ -126,6 +127,74 @@ def resolve(link_id: str = typer.Argument(..., help="Opaque link id from `list -
             await a.aclose()
 
     print(asyncio.run(run()))
+
+
+config_app = typer.Typer(
+    help="Manage provider API keys, stored encrypted on disk.",
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
+
+
+def _store() -> SecretStore:
+    s = get_settings()
+    return SecretStore(s.data_dir, s.secret_key)
+
+
+@config_app.command("list")
+def config_list():
+    """Show which provider credentials are set and where they come from."""
+    try:
+        rows = credential_status(get_settings())
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+    for r in rows:
+        dot = "[green]●[/]" if r["configured"] else "[dim]○[/]"
+        tag = f"[dim]({r['source']})[/]" if r["configured"] else "[dim](not set)[/]"
+        console.print(f"{dot} {r['provider']} {tag}")
+    console.print(f"[dim]store: {get_settings().data_dir}[/]")
+
+
+@config_app.command("set")
+def config_set(
+    provider: str = typer.Argument(..., help=f"One of: {', '.join(MANAGED)}."),
+    value: str = typer.Argument(None, help="API key/token. Omit to enter it hidden."),
+):
+    """Store a provider credential (encrypted at rest)."""
+    if provider not in MANAGED:
+        console.print(f"[red]Unknown provider '{provider}'. Choose from: {', '.join(MANAGED)}[/]")
+        raise typer.Exit(1)
+    if value is None:
+        value = typer.prompt(f"{provider} key", hide_input=True)
+    try:
+        _store().set(provider, value)
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]saved[/] {provider} [dim](encrypted)[/]")
+
+
+@config_app.command("remove")
+def config_remove(
+    provider: str = typer.Argument(..., help=f"One of: {', '.join(MANAGED)}."),
+):
+    """Delete a stored provider credential (env vars, if any, still apply)."""
+    if provider not in MANAGED:
+        console.print(f"[red]Unknown provider '{provider}'.[/]")
+        raise typer.Exit(1)
+    try:
+        _store().delete(provider)
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+    console.print(f"[yellow]removed[/] {provider}")
+
+
+@config_app.command("path")
+def config_path():
+    """Print the directory holding the encrypted credential store."""
+    console.print(get_settings().data_dir)
 
 
 @app.command()
