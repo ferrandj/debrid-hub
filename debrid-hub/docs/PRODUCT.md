@@ -94,6 +94,19 @@ display name prefers a non-ALL-CAPS casing when one appears). A "series" that
 ends up with a single episode is demoted back to a flat row. Toggle the whole
 behaviour with the **group series** switch.
 
+**Redundant whole-season files.** A release sometimes includes, alongside the
+per-episode files, one extra file for the same season that isn't an episode at
+all -- a season-level `.nfo`, or occasionally an actual single-file "complete
+season" release. `parseSeasonPack(name)` (tried only once `parseEp` has already
+failed, so a real `S01E02` file can never be misread as one of these) matches
+`S01`/`Season 1` *without* an episode number. If that season already has
+per-episode entries, the file is redundant -- rather than showing it as a
+top-level row, `buildGroups()` routes it into a single **"To ignore"** group
+rendered at the end of the list, greyed out and collapsed by default. It's
+still fully usable (select, resolve, delete) — just out of the way. If a season
+*only* has the whole-season file and no per-episode files, it's left as a
+normal row instead, since it's the sole way to get that content.
+
 ## Quality / language badges
 
 Also client-side, also derived purely from the filename (no metadata call, no

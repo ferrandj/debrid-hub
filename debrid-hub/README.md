@@ -9,7 +9,7 @@ One place to see every link across your debrid accounts — **Real-Debrid, AllDe
 - Aggregates links from every configured provider into one normalized list.
 - Cross-debrid: you don't pick a service, it just shows everything.
 - Search by filename/host, sort by name/size/date/host/provider/kind.
-- **Series grouping**: TV episodes are folded into collapsible **Series › Seasons › Episodes** trees (parsed from filenames — `S01E02`, `1x02`, `Season 1 Episode 2`), so a show with 40 episodes is one row you can expand. Toggle it off for a flat list. Series names are matched case-insensitively (`From` and `FROM` merge).
+- **Series grouping**: TV episodes are folded into collapsible **Series › Seasons › Episodes** trees (parsed from filenames — `S01E02`, `1x02`, `Season 1 Episode 2`), so a show with 40 episodes is one row you can expand. Toggle it off for a flat list. Series names are matched case-insensitively (`From` and `FROM` merge). A leftover whole-season file (season-level `.nfo`, or a "complete season" single release) alongside real per-episode files gets tucked into a greyed-out **To ignore** group instead of cluttering the top level.
 - **Quality / language badges**: resolution (4K/2160p, 1080p, 720p, …), HDR/DV/REMUX, and language tags (Multi, VFF, VOSTFR, TrueFrench, …) are parsed from the filename and shown under each row.
 - **Cross-provider dedup**: the same release cached by more than one debrid service shows up once — ties broken in favor of **TorBox**, then Real-Debrid, then AllDebrid.
 - **Manage downloads in place**: delete a single file, a whole season, or an entire series — or multi-select and delete in bulk — straight from the UI/CLI/API. Deletions hit each provider's own API.

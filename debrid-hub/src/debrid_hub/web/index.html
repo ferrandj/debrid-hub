@@ -118,10 +118,15 @@
   .grp.open > .chev{transform:rotate(90deg)}
   .gname{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp.season .gname{font-weight:500;color:var(--text)}
+  .gname .gnote{font-weight:400;color:var(--muted);font-size:11px}
   .gmeta{color:var(--muted);font-size:11px;font-family:var(--mono);white-space:nowrap}
   .gsize{font-family:var(--mono);font-size:12px;color:var(--text);white-space:nowrap;min-width:64px;text-align:right}
   .gact{display:flex;gap:6px;flex:none}
   .kids[hidden]{display:none}
+  .grp.ignore{opacity:.55}
+  .grp.ignore:hover{opacity:.85}
+  .grp.ignore .gname{font-weight:500}
+  .grp.ignore + .kids{opacity:.55}
 
   /* States */
   .state{padding:56px 20px;text-align:center;color:var(--muted)}
@@ -431,6 +436,22 @@ function parseEp(name){
   }
   return null;
 }
+/* A release that covers a whole season as one file/link (e.g. "Show.S02.
+   COMPLETE.1080p.mkv") rather than per-episode. Only tried once parseEp has
+   already failed, so a real SxxExx file can never be misread as a pack. */
+const SEASON_PACK_RX = [
+  /^(?<s>.*?)[ ._-]+s(?<se>\d{1,2})\b/i,
+  /^(?<s>.*?)[ ._-]+season[ ._-]*(?<se>\d{1,2})\b/i,
+];
+function parseSeasonPack(name){
+  const base=(name||'').replace(/\.[a-z0-9]{2,4}$/i,'');
+  for(const rx of SEASON_PACK_RX){
+    const m=base.match(rx);
+    if(m&&m.groups&&m.groups.s){ const series=cleanTitle(m.groups.s);
+      if(series) return {series, season:+m.groups.se}; }
+  }
+  return null;
+}
 
 /* ---- Quality / language tags parsed from the filename (display only) ---- */
 const QUALITY_RES=[
@@ -469,23 +490,36 @@ function buildGroups(items){
   // group keeps a `display` name, preferring a non-ALL-CAPS casing if one shows up.
   const series=new Map();     // lowerKey -> {display, seasons: Map(season -> [items])}
   const loose=[];
+  const packCandidates=[];    // whole-season files, reconciled after episode groups are final
   for(const l of items){
     const p=parseEp(l.name);
-    if(!p){ loose.push(l); continue; }
-    const key=p.series.toLowerCase();
-    let g=series.get(key);
-    if(!g){ g={display:p.series, seasons:new Map()}; series.set(key,g); }
-    else if(g.display===g.display.toUpperCase() && p.series!==p.series.toUpperCase()){
-      g.display=p.series;
+    if(p){
+      const key=p.series.toLowerCase();
+      let g=series.get(key);
+      if(!g){ g={display:p.series, seasons:new Map()}; series.set(key,g); }
+      else if(g.display===g.display.toUpperCase() && p.series!==p.series.toUpperCase()){
+        g.display=p.series;
+      }
+      if(!g.seasons.has(p.season)) g.seasons.set(p.season,[]);
+      l._ep=p.episode; g.seasons.get(p.season).push(l);
+      continue;
     }
-    if(!g.seasons.has(p.season)) g.seasons.set(p.season,[]);
-    l._ep=p.episode; g.seasons.get(p.season).push(l);
+    const sp=parseSeasonPack(l.name);
+    if(sp){ packCandidates.push({item:l, series:sp.series, season:sp.season}); continue; }
+    loose.push(l);
   }
   for(const [key,g] of [...series]){
     let total=0; g.seasons.forEach(a=>total+=a.length);
     if(total<2){ g.seasons.forEach(a=>loose.push(...a)); series.delete(key); }
   }
-  return {series, loose};
+  // A whole-season file is redundant once its series+season already has
+  // per-episode entries -- keep it, but out of the way, instead of dropping it.
+  const ignored=[];
+  for(const {item, series:sname, season} of packCandidates){
+    const g=series.get(sname.toLowerCase());
+    (g && g.seasons.has(season) ? ignored : loose).push(item);
+  }
+  return {series, loose, ignored};
 }
 function sumSize(items){ return items.reduce((a,l)=>a+(+l.size||0),0); }
 function selState(ids){
@@ -506,11 +540,12 @@ function render(){
   const grouping=$('#groupChk').checked;
   let html='';
   if(grouping){
-    const {series, loose}=buildGroups(items);
+    const {series, loose, ignored}=buildGroups(items);
     const keys=[...series.keys()].sort((a,b)=>
       series.get(a).display.toLowerCase()<series.get(b).display.toLowerCase()?-1:1);
     for(const key of keys) html+=seriesHtml(series.get(key).display, series.get(key).seasons, key);
     for(const l of loose) html+=rowHtml(l,false);
+    html+=ignoredHtml(ignored);
   }else{
     for(const l of items) html+=rowHtml(l,false);
   }
@@ -569,6 +604,25 @@ function seasonHtml(groupKey, sn, eps){
     <div class="kids" ${open?'':'hidden'}>${inner}</div>`;
 }
 function chev(){ return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>`; }
+
+const IGNORE_KEY='IGN'+SEP+'toignore';
+function ignoredHtml(items){
+  if(!items.length) return '';
+  KEYIDS[IGNORE_KEY]=items.map(l=>l.id);
+  const canDel=items.some(l=>providerCan(l.provider,'delete'));
+  const open=EXPANDED.has(IGNORE_KEY);
+  let inner='';
+  if(open) for(const l of items) inner+=rowHtml(l,true);
+  return `<div class="grp series ignore ${open?'open':''}" data-key="${esc(IGNORE_KEY)}">
+      <span class="chev">${chev()}</span>
+      ${checkbox(selState(items.map(l=>l.id)),'gsel',IGNORE_KEY)}
+      <div class="gname">To ignore <span class="gnote">— whole-season link, a per-episode version already exists</span></div>
+      <div class="gmeta">${items.length} item${items.length!==1?'s':''}</div>
+      <div class="gsize">${human(sumSize(items))}</div>
+      <div class="gact">${delBtn('gdel',IGNORE_KEY,canDel)}</div>
+    </div>
+    <div class="kids" ${open?'':'hidden'}>${inner}</div>`;
+}
 
 function tagBadges(l){
   const {quality, languages}=parseTags(l.name);
@@ -664,8 +718,9 @@ $('#rows').addEventListener('click', e=>{
   const copyBtn=e.target.closest('.copy'); if(copyBtn){ copyOne(copyBtn); return; }
   const rdel=e.target.closest('.rdel'); if(rdel){ if(!rdel.disabled) deleteIds([rdel.dataset.id],''); return; }
   const gdel=e.target.closest('.gdel');
-  if(gdel){ if(!gdel.disabled){ const label = gdel.dataset.key.startsWith('SEA')?'this season':'this series';
-    deleteIds(KEYIDS[gdel.dataset.key]||[], label); } return; }
+  if(gdel){ if(!gdel.disabled){ const k=gdel.dataset.key;
+    const label = k.startsWith('SEA')?'this season':k.startsWith('IGN')?'these ignored items':'this series';
+    deleteIds(KEYIDS[k]||[], label); } return; }
   if(e.target.closest('input,button')) return;   // checkbox handled by change
   const grp=e.target.closest('.grp');
   if(grp){ const k=grp.dataset.key; EXPANDED.has(k)?EXPANDED.delete(k):EXPANDED.add(k); render(); }
@@ -695,9 +750,10 @@ $('#copyJd').onclick=async()=>{
 
 /* Expand / collapse every group */
 $('#expandAll').onclick=()=>{
-  const items=current(); const {series}=buildGroups(items);
+  const items=current(); const {series, ignored}=buildGroups(items);
   const allKeys=[]; for(const [key,g] of series){ allKeys.push('SER'+SEP+key);
     for(const sn of g.seasons.keys()) allKeys.push('SEA'+SEP+key+SEP+sn); }
+  if(ignored.length) allKeys.push(IGNORE_KEY);
   const anyClosed=allKeys.some(k=>!EXPANDED.has(k));
   EXPANDED = anyClosed ? new Set(allKeys) : new Set();
   render();
