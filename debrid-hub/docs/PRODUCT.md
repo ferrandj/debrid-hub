@@ -1,3 +1,5 @@
+<img src="assets/logo.png" alt="" width="48" height="48" align="left" style="margin-right:12px"/>
+
 # Debrid Hub — Product & Architecture
 
 > Machine- and human-readable overview. If you are an AI agent or a new

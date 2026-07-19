@@ -1,3 +1,5 @@
+<img src="assets/logo.png" alt="" width="48" height="48" align="left" style="margin-right:12px"/>
+
 # Debrid Hub — REST API
 
 Base URL: `http://<host>:8080`. Content type is JSON. The canonical machine-readable

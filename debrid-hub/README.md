@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/banner.png" alt="Debrid Hub — all your downloads, one powerful hub" width="720"/></p>
+
 # Debrid Hub
 
 One place to see every link across your debrid accounts — **Real-Debrid, AllDebrid, TorBox** — search and sort them, and copy direct URLs straight into **JDownloader2**. Ships a **CLI**, a **REST API**, and a **web UI** from a single container.
