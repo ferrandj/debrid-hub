@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import abc
+import json as _json
 
 import httpx
 
 from ..models import DebridLink
+
+_SECRET_PARAM_NAMES = {"apikey", "token", "authorization", "key"}
 
 
 class Provider(abc.ABC):
@@ -18,6 +21,36 @@ class Provider(abc.ABC):
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
+        self.debug: bool = False        # when True, _record() captures every call
+        self.debug_log: list[dict] = []
+        # Non-fatal failures from the last list_links() (e.g. one section of a
+        # multi-part listing broke while others succeeded). Surfaced by the
+        # aggregator instead of being silently swallowed.
+        self.warnings: list[str] = []
+
+    def _reset_debug(self) -> None:
+        """Call at the top of list_links() so stale entries from a previous
+        call don't linger or leak into the next debug snapshot."""
+        self.debug_log = []
+        self.warnings = []
+
+    def _record(self, method: str, url: str, params: dict | None, status, body) -> None:
+        """Record one outbound HTTP call for `debug=true` inspection. No-op
+        unless ``self.debug`` is set. Secret-looking param values are redacted;
+        auth carried in headers (Bearer tokens) is never touched here."""
+        if not self.debug:
+            return
+        redacted = {
+            k: ("***" if k.lower() in _SECRET_PARAM_NAMES else v)
+            for k, v in (params or {}).items()
+        }
+        if isinstance(body, (dict, list)):
+            body = _json.dumps(body)[:4000]
+        elif isinstance(body, str):
+            body = body[:4000]
+        self.debug_log.append(
+            {"method": method, "url": url, "params": redacted, "status": status, "body": body}
+        )
 
     @abc.abstractmethod
     async def list_links(self, force: bool = False) -> list[DebridLink]:

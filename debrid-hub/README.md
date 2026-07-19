@@ -7,10 +7,13 @@ One place to see every link across your debrid accounts — **Real-Debrid, AllDe
 - Aggregates links from every configured provider into one normalized list.
 - Cross-debrid: you don't pick a service, it just shows everything.
 - Search by filename/host, sort by name/size/date/host/provider/kind.
-- **Series grouping**: TV episodes are folded into collapsible **Series › Seasons › Episodes** trees (parsed from filenames — `S01E02`, `1x02`, `Season 1 Episode 2`), so a show with 40 episodes is one row you can expand. Toggle it off for a flat list.
+- **Series grouping**: TV episodes are folded into collapsible **Series › Seasons › Episodes** trees (parsed from filenames — `S01E02`, `1x02`, `Season 1 Episode 2`), so a show with 40 episodes is one row you can expand. Toggle it off for a flat list. Series names are matched case-insensitively (`From` and `FROM` merge).
+- **Quality / language badges**: resolution (4K/2160p, 1080p, 720p, …), HDR/DV/REMUX, and language tags (Multi, VFF, VOSTFR, TrueFrench, …) are parsed from the filename and shown under each row.
+- **Cross-provider dedup**: the same release cached by more than one debrid service shows up once — ties broken in favor of **TorBox**, then Real-Debrid, then AllDebrid.
 - **Manage downloads in place**: delete a single file, a whole season, or an entire series — or multi-select and delete in bulk — straight from the UI/CLI/API. Deletions hit each provider's own API.
 - Resolves the actual direct download URL on demand (links are metered/locked on some services, so this happens when you copy, not when you browse).
 - **JD2 tray**: tick several links, hit *Copy for JD2*, and every direct URL lands on your clipboard newline-separated. JDownloader2 monitors the clipboard by default, so it auto-catches them into the LinkGrabber — or just paste.
+- **Debug mode**: `?debug=true` on `/api/links`, `debrid-hub list --debug`, or the **🐛 Debug** button in the UI show the exact outbound request/response for every provider call that last listing made (secrets redacted) — for when a provider changes their API out from under you.
 
 ## Quick start (Docker, e.g. on your NAS)
 
@@ -77,6 +80,7 @@ debrid-hub list -s 1080p --urls | xclip -selection clipboard   # → paste into 
 debrid-hub list --json               # machine-readable
 debrid-hub resolve <link-id>         # id comes from `list --json`
 debrid-hub rm <link-id> [<id>…]      # delete link(s); -y to skip the prompt
+debrid-hub list --debug              # force refresh + print raw provider requests/responses
 debrid-hub serve --port 8080
 ```
 
@@ -94,7 +98,7 @@ Base URL `http://host:8080`. If `DEBRID_HUB_API_KEY` is set, send `Authorization
 | GET | `/api/config` | which provider keys are set + source (never the value) |
 | PUT | `/api/config` | body `{"realdebrid":"…"}` → save key(s), encrypted; `""` clears |
 | DELETE | `/api/config/{provider}` | remove a stored key |
-| GET | `/api/links` | aggregated list; query: `search, provider, kind, sort, order, refresh` |
+| GET | `/api/links` | aggregated list; query: `search, provider, kind, sort, order, refresh, debug` |
 | POST | `/api/resolve` | body `{"ids":["…"]}` (or `{"id":"…"}`) → direct URLs |
 | POST | `/api/delete` | body `{"ids":["…"]}` (or `{"id":"…"}`) → delete from provider; per-id `{"ok":true}`/`{"error":…}` |
 | GET | `/health` | liveness |
@@ -127,7 +131,8 @@ Subclass `Provider` in `src/debrid_hub/providers/`, implement `list_links()` and
 
 ## Notes
 
-- The listing is cached for `DEBRID_HUB_CACHE_TTL` seconds (default 60); **Refresh** forces a re-fetch.
-- Real-Debrid links come from your `/downloads` history (already direct). AllDebrid saved links + completed magnets and TorBox torrents/web/usenet are resolved when you copy them.
-- AllDebrid only exposes file links for *completed* magnets.
-- Series grouping is inferred from filenames (`S01E02`, `1x02`, `Season 1 Episode 2`); it's a display convenience, not metadata from the providers. Files that don't match stay as flat rows.
+- The listing is cached for `DEBRID_HUB_CACHE_TTL` seconds (default 60); **Refresh** forces a re-fetch (and bypasses TorBox's own server-side listing cache too, so a just-deleted item doesn't reappear).
+- Real-Debrid links come from your `/downloads` history (already direct). AllDebrid saved links + ready magnets and TorBox torrents/web/usenet are resolved when you copy them.
+- AllDebrid only exposes file links for magnets whose status is **Ready**.
+- Series grouping, quality/language badges, and cross-provider dedup are inferred client-side from filenames/size; they're display conveniences, not metadata from the providers. Files that don't match stay as-is.
+- If a provider's listing comes back empty or wrong after they change their API, check `debrid-hub list --debug` (or `?debug=true` / the UI's Debug button) before assuming it's a credentials problem — it shows the exact request and response.

@@ -203,6 +203,7 @@
     "/api/links": {
       "get": {
         "summary": "Links",
+        "description": "`debug=true` forces a live refresh and includes, per provider, every\noutbound HTTP call made while listing (method, url, redacted params,\nstatus, response body) -- for diagnosing a provider API change.",
         "operationId": "links_api_links_get",
         "parameters": [
           {
@@ -281,6 +282,16 @@
               "type": "boolean",
               "default": false,
               "title": "Refresh"
+            }
+          },
+          {
+            "name": "debug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Debug"
             }
           },
           {

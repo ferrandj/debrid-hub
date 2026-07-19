@@ -105,15 +105,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         sort: str = "name",
         order: str = "asc",
         refresh: bool = False,
+        debug: bool = False,
     ):
-        all_links = await agg.list_links(force=refresh)
+        """`debug=true` forces a live refresh and includes, per provider, every
+        outbound HTTP call made while listing (method, url, redacted params,
+        status, response body) -- for diagnosing a provider API change."""
+        all_links = await agg.list_links(force=refresh, debug=debug)
         items = filter_sort(all_links, search, provider, kind, sort, order)
-        return {
+        resp = {
             "count": len(items),
             "total": len(all_links),
             "errors": agg.errors,
             "links": [l.to_dict() for l in items],
         }
+        if debug:
+            resp["debug"] = agg.debug_logs
+        return resp
 
     @app.post("/api/resolve", dependencies=[Depends(auth)])
     async def resolve(body: ResolveRequest):

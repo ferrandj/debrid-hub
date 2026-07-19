@@ -1,8 +1,9 @@
 # Debrid Hub
 
 > Self-hosted aggregator for debrid services (Real-Debrid, AllDebrid, TorBox). Shows
-> every link across your accounts as one normalized list, resolves direct download
-> URLs on demand, groups TV episodes into series/seasons, lets you delete items, and
+> every link across your accounts as one normalized list, groups TV episodes into
+> series/seasons, shows quality/language badges, dedups the same release across
+> providers, resolves direct download URLs on demand, lets you delete items, and
 > feeds URLs to JDownloader2. One Python package = web UI + REST API + CLI.
 
 Key facts for agents:
@@ -11,6 +12,11 @@ Key facts for agents:
 - Optional auth: if `DEBRID_HUB_API_KEY` is set, send `Authorization: Bearer <key>`.
 - Deletion is irreversible; AllDebrid magnets and all TorBox items delete the whole
   torrent/magnet (every file inside). The `mock` provider is a safe delete target.
+- Provider APIs change upstream (e.g. AllDebrid split /magnet/status into
+  /v4.1/magnet/status + /v4/magnet/files). A provider section failure is recorded
+  in `Provider.warnings` and surfaced via `errors[provider]`, never swallowed
+  silently. `?debug=true` on `/api/links` (or `--debug`, or the UI's Debug button)
+  shows every outbound request/response made while listing, secrets redacted.
 - Try with no keys: `DEBRID_HUB_MOCK=1 debrid-hub serve`.
 
 ## Docs
@@ -21,14 +27,14 @@ Key facts for agents:
 
 ## API surface
 - `GET /api/providers` — providers, health, capabilities (e.g. `["delete"]`)
-- `GET /api/links?search=&provider=&kind=&sort=&order=&refresh=` — normalized listing
+- `GET /api/links?search=&provider=&kind=&sort=&order=&refresh=&debug=` — normalized listing; `debug=true` adds raw request/response log
 - `POST /api/resolve` `{ids:[...]}` — link ids → direct URLs
 - `POST /api/delete` `{ids:[...]}` — delete links from provider accounts (irreversible)
 - `GET /api/config` / `PUT /api/config` / `DELETE /api/config/{provider}` — encrypted key management (never returns key values)
 - `GET /health` — liveness
 
 ## CLI
-- `debrid-hub providers | list | resolve <id> | rm <id> [-y] | serve`
+- `debrid-hub providers | list [--debug] | resolve <id> | rm <id> [-y] | serve`
 - `debrid-hub config set|list|remove|path`
 
 ## Source layout

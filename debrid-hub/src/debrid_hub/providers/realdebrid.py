@@ -23,13 +23,18 @@ class RealDebrid(Provider):
         self._headers = {"Authorization": f"Bearer {token}"}
 
     async def _get(self, path: str, **params):
-        r = await self._client.get(f"{BASE}{path}", headers=self._headers, params=params)
+        url = f"{BASE}{path}"
+        r = await self._client.get(url, headers=self._headers, params=params)
         if r.status_code == 204:
+            self._record("GET", url, params, r.status_code, [])
             return []
         r.raise_for_status()
-        return r.json()
+        j = r.json()
+        self._record("GET", url, params, r.status_code, j)
+        return j
 
     async def list_links(self, force: bool = False) -> list[DebridLink]:
+        self._reset_debug()
         out: list[DebridLink] = []
         page = 1
         while page <= 50:  # hard cap: 50 pages * 100 = 5000 items

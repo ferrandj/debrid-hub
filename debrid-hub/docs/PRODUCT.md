@@ -23,9 +23,16 @@ It is one Python package exposing three surfaces over the same core:
 | Provider | id | Lists | Resolve | Delete granularity |
 |---|---|---|---|---|
 | Real-Debrid | `realdebrid` | `/downloads` history (already direct) | none needed (URL is direct) | single download entry |
-| AllDebrid | `alldebrid` | saved links + files in completed magnets | `/link/unlock` per link | saved link: that link · magnet file: the **whole magnet** |
+| AllDebrid | `alldebrid` | saved links (`/v4/user/links`) + files in ready magnets (`/v4.1/magnet/status` + `/v4/magnet/files`) | `/link/unlock` per link | saved link: that link · magnet file: the **whole magnet** |
 | TorBox | `torbox` | torrents / web / usenet items + their files | `requestdl` per file | the **whole item** (all files) |
 | Mock | `mock` | built-in fake data (`DEBRID_HUB_MOCK=1`) | echoes a URL | in-memory (safe to test) |
+
+> **AllDebrid API note:** the old consolidated `/v4/magnet/status` (which used to
+> also carry each magnet's files) was discontinued upstream. It's now two calls:
+> `/v4.1/magnet/status` for status only, then `/v4/magnet/files` (batched, `id[]`)
+> for files of magnets whose `statusCode == 4` ("Ready"). A magnet's files can
+> nest one level (a folder entry with an `e[]` array) — `providers/alldebrid.py`
+> flattens that recursively.
 
 ## Core concepts
 
@@ -41,6 +48,12 @@ It is one Python package exposing three surfaces over the same core:
 - **Capabilities** — a provider advertises optional operations via
   `capabilities: tuple[str,...]` (currently `("delete",)`). The UI/CLI/API use this
   to decide which management actions to offer.
+- **Partial failures aren't swallowed.** A provider's `list_links()` may fetch
+  several sections (e.g. AllDebrid: saved links, then magnets); if one section
+  fails, the provider records it in `self.warnings` instead of silently dropping
+  it, and `Aggregator.list_links()` surfaces that into `errors[provider]` even
+  though the provider still returned whatever it could. This is what used to hide
+  the AllDebrid magnet-listing breakage entirely — see the debug mode below.
 
 ## Request flow
 
@@ -78,6 +91,55 @@ or `(2015)` removed). Items are grouped `series → season → episodes`, keyed
 display name prefers a non-ALL-CAPS casing when one appears). A "series" that
 ends up with a single episode is demoted back to a flat row. Toggle the whole
 behaviour with the **group series** switch.
+
+## Quality / language badges
+
+Also client-side, also derived purely from the filename (no metadata call, no
+external lookup). `parseTags(name)` scans for two independent token sets and
+renders them as small pills under the filename:
+
+- **Quality**: resolution (`4K`/`2160p`→`4K`, `1440p`, `1080p`, `1080i`, `720p`,
+  `576p`, `480p` — first match wins) plus any of `REMUX`, `DV` (Dolby Vision),
+  `HDR10+`, `HDR`, `BluRay`, `WEB-DL`, `WEBRip`, `HDTV` that appear.
+- **Language**: `TrueFrench`, `VFF`, `VFI`, `VFQ`, `VOSTFR`, `Multi`, `French`,
+  `Italian`, `German`, `Spanish`, `English`.
+
+Both are best-effort display hints, not stored data — a filename that doesn't
+match anything just shows no badges.
+
+## Cross-provider dedup
+
+The same release is often cached by more than one debrid service. `current()`
+(in `index.html`) collapses items whose normalized filename (lowercased,
+non-alphanumerics stripped) **and** exact size match, keeping one per group.
+The provider you're left seeing doesn't matter functionally (select/resolve/
+delete all operate on whichever copy won), but ties are broken by a fixed
+priority — **TorBox, then Real-Debrid, then AllDebrid, then Mock**
+(`PROVIDER_PRIORITY`). This only affects the *combined* view: filtering to a
+single provider chip shows that provider's raw, undeduped list.
+
+## Debug mode: raw provider requests/responses
+
+`GET /api/links?debug=true` (implies `refresh=true`) makes every provider
+record every outbound HTTP call it makes during that listing — method, URL,
+query params (secrets like `apikey`/`token`/`authorization` redacted to `***`),
+response status, and a truncated response body — and returns it under a
+`"debug"` key, `{provider: [call, ...]}`. This is opt-in and per-request; a
+provider's `debug_log` is reset at the top of every `list_links()` call so it
+never leaks a previous request's calls into the next.
+
+Three ways to see it:
+- **Web UI**: the **🐛 Debug** button next to Refresh.
+- **API**: `curl "localhost:8080/api/links?debug=true" | jq .debug`.
+- **CLI**: `debrid-hub list --debug`.
+
+This exists because a provider changing its upstream API (as AllDebrid did —
+see the note above) can otherwise fail *silently*: a caught exception inside
+one section of `list_links()` used to just mean "return fewer links," with no
+visible error and nothing to grep. Now such failures land in `warnings` →
+`errors[provider]`, and `--debug`/`?debug=true` shows the exact request and the
+exact response that broke, without needing to hand over an API key to debug it
+by hand again.
 
 ## Configuration & secrets
 

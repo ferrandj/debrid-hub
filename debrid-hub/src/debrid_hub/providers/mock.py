@@ -41,6 +41,7 @@ class Mock(Provider):
         self._deleted: set[str] = set()
 
     async def list_links(self, force: bool = False) -> list[DebridLink]:
+        self._reset_debug()
         out: list[DebridLink] = []
         for i, (name, size, kind, host) in enumerate(_SAMPLES):
             url = f"https://example.com/{i}/{name}"

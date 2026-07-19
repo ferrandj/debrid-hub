@@ -43,14 +43,17 @@ class TorBox(Provider):
         self._headers = {"Authorization": f"Bearer {apikey}"}
 
     async def _get(self, path: str, **params):
-        r = await self._client.get(f"{BASE}{path}", headers=self._headers, params=params)
+        url = f"{BASE}{path}"
+        r = await self._client.get(url, headers=self._headers, params=params)
         r.raise_for_status()
         j = r.json()
+        self._record("GET", url, params, r.status_code, j)
         if not j.get("success", True):
             raise RuntimeError(j.get("detail") or j.get("error") or "torbox error")
         return j.get("data")
 
     async def list_links(self, force: bool = False) -> list[DebridLink]:
+        self._reset_debug()
         out: list[DebridLink] = []
         # TorBox caches mylist server-side; bypass it on an explicit refresh so a
         # just-deleted torrent doesn't keep coming back.
@@ -58,7 +61,8 @@ class TorBox(Provider):
         for kind, path in _LIST:
             try:
                 data = await self._get(path, bypass_cache=bypass)
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 — surfaced via `warnings`, not swallowed
+                self.warnings.append(f"{kind}: {type(exc).__name__}: {exc}")
                 continue
             for item in (data or []):
                 item_id = item.get("id")

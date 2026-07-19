@@ -62,7 +62,8 @@ still apply afterwards. → `{ "ok": true, "providers": […] }`
 Aggregated, normalized listing.
 
 Query params: `search`, `provider`, `kind`, `sort` (`name|size|host|provider|added|kind`),
-`order` (`asc|desc`), `refresh` (`true` bypasses the cache).
+`order` (`asc|desc`), `refresh` (`true` bypasses the cache), `debug` (`true` implies
+`refresh=true` and adds a `"debug"` field — see below).
 
 ```json
 {
@@ -85,9 +86,37 @@ Query params: `search`, `provider`, `kind`, `sort` (`name|size|host|provider|add
 }
 ```
 
-`errors` maps a provider to why it couldn't be reached; the rest of the listing is
-still returned. `id` is opaque — pass it to resolve/delete. `resolvable` is `true`
-when the direct URL must be fetched via `/api/resolve`.
+`errors` maps a provider to why it couldn't be reached — including a *partial*
+failure where the provider still returned some links but one section of its
+listing broke (see `Provider.warnings` in [`PRODUCT.md`](PRODUCT.md)). `id` is
+opaque — pass it to resolve/delete. `resolvable` is `true` when the direct URL
+must be fetched via `/api/resolve`.
+
+Series grouping, quality/language badges, and cross-provider dedup (same
+release cached by multiple providers → one row, preferring TorBox) are all
+**client-side** — this response is always the flat, undeduped list; see
+[`PRODUCT.md`](PRODUCT.md) for that logic.
+
+With `debug=true`, the response also includes:
+```json
+{
+  "debug": {
+    "alldebrid": [
+      {
+        "method": "GET",
+        "url": "https://api.alldebrid.com/v4.1/magnet/status",
+        "params": { "agent": "debrid-hub", "apikey": "***" },
+        "status": 200,
+        "body": "{\"status\":\"success\",\"data\":{...}}"
+      }
+    ]
+  }
+}
+```
+One entry per outbound HTTP call made while listing that provider. `apikey`/
+`token`/`authorization` param values are always redacted to `"***"` before this
+leaves the server; body is truncated to 4000 chars. Also available via
+`debrid-hub list --debug` and the **🐛 Debug** button in the web UI.
 
 ### `POST /api/resolve`
 Turn link ids into final direct download URLs (may be metered on some providers).

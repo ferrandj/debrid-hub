@@ -62,13 +62,17 @@ def list_cmd(
     resolve: bool = typer.Option(False, "--resolve", help="Resolve direct URLs (slower, may be metered)."),
     urls_only: bool = typer.Option(False, "--urls", help="Print only direct URLs, one per line (pipe into JD2)."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON."),
+    debug: bool = typer.Option(
+        False, "--debug",
+        help="Force a live refresh and print every outbound provider HTTP call (secrets redacted).",
+    ),
 ):
     """List every link across your debrid accounts."""
 
     async def run():
         a = _agg()
         try:
-            links = await a.list_links()
+            links = await a.list_links(force=debug, debug=debug)
             items = filter_sort(links, search, provider, kind, sort, order)
             resolved: dict[str, str | None] = {}
             if resolve or urls_only:
@@ -79,11 +83,11 @@ def list_cmd(
                         resolved[l.id] = None
                         if not urls_only and not json_out:
                             console.print(f"[red]resolve failed[/] {l.name}: {exc}", highlight=False)
-            return items, resolved, a.errors
+            return items, resolved, a.errors, dict(a.debug_logs)
         finally:
             await a.aclose()
 
-    items, resolved, errors = asyncio.run(run())
+    items, resolved, errors, debug_logs = asyncio.run(run())
 
     if urls_only:
         for l in items:
@@ -113,6 +117,21 @@ def list_cmd(
     console.print(f"[dim]{len(items)} link(s)[/]")
     for name, msg in errors.items():
         console.print(f"[red]! {name}: {msg}[/]")
+
+    if debug:
+        console.print("\n[bold]— debug: provider requests/responses —[/]")
+        if not any(debug_logs.values()):
+            console.print("[dim](no outbound calls recorded)[/]")
+        for pname, log in debug_logs.items():
+            console.print(f"[cyan]{pname}[/] — {len(log)} call(s)")
+            for entry in log:
+                console.print(
+                    f"  {entry['method']} {entry['url']} {entry['params']} -> {entry['status']}",
+                    highlight=False,
+                )
+                body = entry["body"]
+                body_s = body if isinstance(body, str) else _json.dumps(body)
+                console.print(f"    {body_s[:500]}", style="dim", highlight=False)
 
 
 @app.command()

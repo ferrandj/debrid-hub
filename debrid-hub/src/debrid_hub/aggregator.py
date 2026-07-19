@@ -53,6 +53,7 @@ class Aggregator:
         self._cache: list[DebridLink] | None = None
         self._cache_at = 0.0
         self.errors: dict[str, str] = {}
+        self.debug_logs: dict[str, list[dict]] = {}
         self.store_error: str = ""
         self._build()
 
@@ -106,26 +107,41 @@ class Aggregator:
         """Per-provider extra operations (e.g. {'torbox': ['delete']})."""
         return {n: list(p.capabilities) for n, p in self._providers.items()}
 
-    async def list_links(self, force: bool = False) -> list[DebridLink]:
+    async def list_links(self, force: bool = False, debug: bool = False) -> list[DebridLink]:
+        if debug:
+            force = True  # a debug snapshot must reflect a live call, not the cache
         now = time.time()
         if not force and self._cache is not None and now - self._cache_at < self.settings.cache_ttl:
             return self._cache
 
         names = list(self._providers)
+        providers_list = list(self._providers.values())
+        if debug:
+            for p in providers_list:
+                p.debug = True
         results = await asyncio.gather(
-            *(p.list_links(force=force) for p in self._providers.values()),
+            *(p.list_links(force=force) for p in providers_list),
             return_exceptions=True,
         )
         links: list[DebridLink] = []
         errors: dict[str, str] = {}
-        for name, res in zip(names, results):
+        debug_logs: dict[str, list[dict]] = {}
+        for name, provider, res in zip(names, providers_list, results):
+            if debug:
+                debug_logs[name] = list(provider.debug_log)
+                provider.debug = False
             if isinstance(res, Exception):
                 errors[name] = f"{type(res).__name__}: {res}"
                 continue
+            if provider.warnings:
+                # Non-fatal: the provider still returned what it could, but part
+                # of the listing failed silently otherwise -- surface it.
+                errors[name] = "; ".join(provider.warnings)
             for l in res:
                 l.id = l.compute_id()
                 links.append(l)
         self._cache, self._cache_at, self.errors = links, now, errors
+        self.debug_logs = debug_logs
         return links
 
     async def resolve(self, link_id: str) -> str:
