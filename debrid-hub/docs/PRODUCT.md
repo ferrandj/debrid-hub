@@ -73,8 +73,10 @@ patterns (first match wins), after stripping the file extension:
 3. `…Season 1 Episode 2…`
 
 The series title is cleaned (dots/underscores → spaces, trailing year like `2015`
-or `(2015)` removed). Items are grouped `series → season → episodes`. A "series"
-that ends up with a single episode is demoted back to a flat row. Toggle the whole
+or `(2015)` removed). Items are grouped `series → season → episodes`, keyed
+**case-insensitively** so e.g. `From` and `FROM` merge into one series (the
+display name prefers a non-ALL-CAPS casing when one appears). A "series" that
+ends up with a single episode is demoted back to a flat row. Toggle the whole
 behaviour with the **group series** switch.
 
 ## Configuration & secrets
