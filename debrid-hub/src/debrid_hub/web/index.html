@@ -83,6 +83,12 @@
   .name{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .name .sub{display:block;color:var(--muted);font-size:11px;font-family:var(--mono);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .name .badges{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+  .name .badges .qtag,.name .badges .langtag{font-family:var(--mono);font-size:9px;
+    font-weight:700;padding:1px 6px;border-radius:5px;text-transform:uppercase;
+    letter-spacing:.3px;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+  .name .badges .qtag.hi{color:var(--accent);border-color:var(--accent-dim)}
+  .name .badges .langtag{color:#8fb8ff;border-color:#2a3f5c}
   .tag{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;
     text-align:center;color:#08110f}
   .tag.realdebrid{background:var(--rd)} .tag.alldebrid{background:var(--ad)}
@@ -167,6 +173,17 @@
   .badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;
     text-transform:uppercase;letter-spacing:.4px}
   .badge.stored{background:var(--accent-dim);color:#d9fff8}
+  .debug-card{max-width:760px}
+  .dbg-provider{margin-bottom:16px}
+  .dbg-provider h4{margin:0 0 8px;font-size:13px;color:var(--text)}
+  .dbg-call{background:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;margin-bottom:8px;font-family:var(--mono);font-size:11px}
+  .dbg-call .ln{color:var(--text);word-break:break-all}
+  .dbg-call .ln .m{color:var(--accent);font-weight:700}
+  .dbg-call .ln .st{color:var(--muted)}
+  .dbg-call .ln .st.err{color:var(--danger)}
+  .dbg-call pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-all;color:var(--muted);
+    max-height:160px;overflow:auto}
   .badge.env{background:#3a3320;color:var(--ad)}
   .badge.none{background:var(--panel2);color:var(--muted)}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
@@ -193,6 +210,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
     <button class="iconbtn" id="settings" title="Provider API keys">⚙ Keys</button>
+    <button class="iconbtn" id="debugBtn" title="Show raw provider requests/responses (forces a refresh)">🐛 Debug</button>
     <button class="iconbtn" id="keybtn" title="Set access key" style="display:none">🔒</button>
   </div>
 </header>
@@ -255,6 +273,19 @@
     <div class="modal-actions">
       <button class="ghost" id="cfgCancel">Cancel</button>
       <button class="primary" id="cfgSave">Save keys</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="debugModal" hidden>
+  <div class="modal-card debug-card">
+    <div class="modal-head"><b>Provider requests / responses</b>
+      <button class="iconbtn" id="debugClose" title="Close">✕</button></div>
+    <p class="modal-note">Raw outbound calls from the last refresh. Secret-looking
+      params (API keys, tokens) are redacted before this ever reaches the browser.</p>
+    <div id="debugBody"></div>
+    <div class="modal-actions">
+      <button class="ghost" id="debugCancel">Close</button>
     </div>
   </div>
 </div>
@@ -332,6 +363,20 @@ function buildFilters(){
   document.querySelectorAll('.chip.prov,.chip.kind').forEach(c=>c.onclick=()=>{c.classList.toggle('on');render();});
 }
 
+/* Same release cached by more than one provider shows up once. Provider choice
+   doesn't matter to the user, but when it's a tie we prefer TorBox. */
+const PROVIDER_PRIORITY={torbox:0, realdebrid:1, alldebrid:2, mock:3};
+function dedupeKey(l){ return (l.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'')+'|'+(+l.size||0); }
+function dedupeAcrossProviders(items){
+  const winners=new Map();
+  for(const l of items){
+    const key=dedupeKey(l);
+    const cur=winners.get(key);
+    if(!cur || (PROVIDER_PRIORITY[l.provider]??99) < (PROVIDER_PRIORITY[cur.provider]??99)) winners.set(key,l);
+  }
+  return [...winners.values()];
+}
+
 function current(){
   const q=$('#q').value.trim().toLowerCase();
   const provs=[...document.querySelectorAll('.chip.prov.on')].map(c=>c.dataset.prov);
@@ -340,6 +385,7 @@ function current(){
     (!provs.length||provs.includes(l.provider)) &&
     (!kinds.length||kinds.includes(l.kind)) &&
     (!q || (l.name||'').toLowerCase().includes(q) || (l.host||'').toLowerCase().includes(q)));
+  items=dedupeAcrossProviders(items);
   const s=$('#sort').value, asc=$('#order').value==='asc';
   items.sort((a,b)=>{
     let x=a[s]??'', y=b[s]??'';
@@ -369,6 +415,39 @@ function parseEp(name){
   }
   return null;
 }
+
+/* ---- Quality / language tags parsed from the filename (display only) ---- */
+const QUALITY_RES=[
+  [/\b(2160p|4k|uhd)\b/i,'4K'], [/\b1440p\b/i,'1440p'],
+  [/\b1080p\b/i,'1080p'], [/\b1080i\b/i,'1080i'],
+  [/\b720p\b/i,'720p'], [/\b576p\b/i,'576p'], [/\b480p\b/i,'480p'],
+];
+const QUALITY_EXTRA=[
+  [/\bremux\b/i,'REMUX'],
+  [/\b(dolby[ .]?vision|dovi|\bdv\b)\b/i,'DV'],
+  [/\bhdr10\+/i,'HDR10+'], [/\bhdr\b/i,'HDR'],
+  [/\bblu-?ray|bdrip\b/i,'BluRay'],
+  [/\bweb-?dl\b/i,'WEB-DL'], [/\bwebrip\b/i,'WEBRip'], [/\bhdtv\b/i,'HDTV'],
+];
+const LANGUAGE_TOKENS=[
+  [/\btruefrench\b/i,'TrueFrench'], [/\bvff\b/i,'VFF'], [/\bvfi\b/i,'VFI'],
+  [/\bvfq\b/i,'VFQ'], [/\bvostfr\b/i,'VOSTFR'], [/\bmulti\b/i,'Multi'],
+  [/\bfrench\b/i,'French'], [/\b(italian|\bita\b)/i,'Italian'],
+  [/\bgerman\b/i,'German'], [/\b(spanish|\bspa\b)/i,'Spanish'],
+  [/\benglish\b/i,'English'],
+];
+function parseTags(name){
+  const n=name||'';
+  const quality=[];
+  for(const [rx,label] of QUALITY_RES){ if(rx.test(n)){ quality.push(label); break; } }
+  for(const [rx,label] of QUALITY_EXTRA){ if(rx.test(n)) quality.push(label); }
+  const seenLang=new Set(); const languages=[];
+  for(const [rx,label] of LANGUAGE_TOKENS){
+    if(rx.test(n) && !seenLang.has(label)){ seenLang.add(label); languages.push(label); }
+  }
+  return {quality, languages};
+}
+
 function buildGroups(items){
   // Keyed case-insensitively so "From" and "FROM" merge into one series; each
   // group keeps a `display` name, preferring a non-ALL-CAPS casing if one shows up.
@@ -475,12 +554,21 @@ function seasonHtml(groupKey, sn, eps){
 }
 function chev(){ return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>`; }
 
+function tagBadges(l){
+  const {quality, languages}=parseTags(l.name);
+  if(!quality.length && !languages.length) return '';
+  const hi=/^(4K|2160p|HDR|HDR10\+|DV|REMUX)$/;
+  const q=quality.map(t=>`<span class="qtag${hi.test(t)?' hi':''}">${esc(t)}</span>`).join('');
+  const g=languages.map(t=>`<span class="langtag">${esc(t)}</span>`).join('');
+  return `<div class="badges">${q}${g}</div>`;
+}
+
 function rowHtml(l, isEp){
   const on=SELECTED.has(l.id);
   const canDel=providerCan(l.provider,'delete');
   return `<div class="row ${isEp?'ep':''}">
       <div><input type="checkbox" class="rsel" data-id="${esc(l.id)}" ${on?'checked':''}/></div>
-      <div class="name">${esc(l.name)}<span class="sub">${esc(l.added?l.added.slice(0,10)+' · ':'')}${esc(l.host)}</span></div>
+      <div class="name">${esc(l.name)}<span class="sub">${esc(l.added?l.added.slice(0,10)+' · ':'')}${esc(l.host)}</span>${tagBadges(l)}</div>
       <div><span class="tag ${esc(l.provider)}">${esc(l.provider.slice(0,2).toUpperCase())}</span></div>
       <div class="cell-mono col-host">${esc(l.host)}</div>
       <div class="cell-mono col-kind">${esc(l.kind)}</div>
@@ -655,8 +743,46 @@ $('#settings').onclick=openConfig;
 $('#cfgClose').onclick=closeConfig; $('#cfgCancel').onclick=closeConfig;
 $('#cfgSave').onclick=saveConfig;
 $('#cfgModal').onclick=e=>{ if(e.target===$('#cfgModal')) closeConfig(); };
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#cfgModal').hidden) closeConfig(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#cfgModal').hidden){ closeConfig(); closeDebug(); } });
 $('#refresh').onclick=()=>loadLinks(true);
+
+/* ---- Debug: raw provider requests/responses ---- */
+async function openDebug(){
+  const btn=$('#debugBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Loading…';
+  try{
+    const d=await api('/api/links?refresh=true&debug=true');
+    ALL=d.links;
+    const ids=new Set(ALL.map(l=>l.id));
+    SELECTED=new Set([...SELECTED].filter(id=>ids.has(id)));
+    renderErrors(d.errors);
+    buildFilters();
+    render();
+    const logs=d.debug||{};
+    const names=Object.keys(logs);
+    $('#debugBody').innerHTML = names.length
+      ? names.map(name=>{
+          const calls=logs[name]||[];
+          return `<div class="dbg-provider"><h4>${esc(name)} — ${calls.length} call(s)</h4>${
+            calls.length ? calls.map(c=>{
+              const err=!(c.status>=200 && c.status<300);
+              let bodyStr=c.body; if(typeof bodyStr!=='string') bodyStr=JSON.stringify(bodyStr,null,2);
+              return `<div class="dbg-call">
+                <div class="ln"><span class="m">${esc(c.method)}</span> ${esc(c.url)}
+                  ${esc(JSON.stringify(c.params))} → <span class="st${err?' err':''}">${esc(String(c.status))}</span></div>
+                <pre>${esc(bodyStr||'')}</pre>
+              </div>`;
+            }).join('') : '<div class="dbg-call">(no outbound calls recorded)</div>'
+          }</div>`;
+        }).join('')
+      : '<div class="dbg-provider">No providers configured.</div>';
+    $('#debugModal').hidden=false;
+  }catch(e){ if(e.message!=='unauthorized') toast('Debug load failed: '+e.message,true); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+function closeDebug(){ $('#debugModal').hidden=true; }
+$('#debugBtn').onclick=openDebug;
+$('#debugClose').onclick=closeDebug; $('#debugCancel').onclick=closeDebug;
+$('#debugModal').onclick=e=>{ if(e.target===$('#debugModal')) closeDebug(); };
 $('#groupChk').onchange=render;
 let deb; $('#q').oninput=()=>{clearTimeout(deb);deb=setTimeout(render,120);};
 $('#sort').onchange=render; $('#order').onchange=render;
