@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import datetime
 import hashlib
 import json
 import os
@@ -195,6 +196,65 @@ class AddonStore:
     def delete(self, addon_id: str) -> None:
         data = self.load()
         data.pop(addon_id, None)
+        self._save(data)
+
+
+class FavoritesStore:
+    """Plain (unencrypted) storage for favorited Discover catalog items --
+    just a movie/series id + the display fields needed to render a poster
+    card, nothing secret. Lives in `<data_dir>/favorites.json` next to the
+    encrypted stores, but doesn't share their Fernet key since there's
+    nothing here worth encrypting.
+
+    Entries are keyed by "{type}:{id}" (e.g. "movie:tt1234567") since a
+    catalog id is only unique within its type.
+    """
+
+    def __init__(self, data_dir: str) -> None:
+        self.dir = Path(data_dir).expanduser()
+        self._path = self.dir / "favorites.json"
+
+    @staticmethod
+    def make_key(type_: str, item_id: str) -> str:
+        return f"{type_}:{item_id}"
+
+    def load(self) -> dict[str, dict]:
+        """key -> {type, id, name, poster, year, added_at}"""
+        if not self._path.exists():
+            return {}
+        try:
+            return json.loads(self._path.read_text())
+        except (ValueError, OSError):
+            return {}
+
+    def list(self) -> list[dict]:
+        """Newest-first, for rendering a "Favorites" catalog section."""
+        return sorted(self.load().values(), key=lambda e: e.get("added_at", ""), reverse=True)
+
+    def _save(self, data: dict[str, dict]) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, separators=(",", ":")))
+        os.replace(tmp, self._path)
+
+    def add(self, type_: str, item_id: str, meta: dict) -> dict:
+        key = self.make_key(type_, item_id)
+        data = self.load()
+        entry = {
+            "type": type_,
+            "id": item_id,
+            "name": meta.get("name") or "",
+            "poster": meta.get("poster") or "",
+            "year": meta.get("year") or "",
+            "added_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        data[key] = entry
+        self._save(data)
+        return entry
+
+    def remove(self, type_: str, item_id: str) -> None:
+        data = self.load()
+        data.pop(self.make_key(type_, item_id), None)
         self._save(data)
 
 

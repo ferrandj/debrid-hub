@@ -9,7 +9,7 @@
   :root{
     --ink:#0E1116; --panel:#151A21; --panel2:#1B222B; --line:#263039;
     --text:#D6DEE8; --muted:#7A8794; --accent:#2FB8FF; --accent-dim:#155a8a;
-    --rd:#4C8DFF; --ad:#F5A623; --tb:#A472FF; --mock:#7A8794; --danger:#ff6b6b;
+    --rd:#4C8DFF; --ad:#F5A623; --tb:#A472FF; --mock:#7A8794; --danger:#ff6b6b; --fav:#f5c518;
     --danger-dim:#5a2b2b;
     --ui:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
@@ -145,7 +145,7 @@
   .disc-section h3 small{color:var(--muted);font-weight:400;font-size:11px;font-family:var(--mono)}
   .disc-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
   .disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:14px}
-  .disc-card{flex:none;width:126px;cursor:pointer}
+  .disc-card{flex:none;width:126px;cursor:pointer;position:relative}
   .disc-grid .disc-card{width:auto}
   .disc-poster{width:100%;aspect-ratio:2/3;border-radius:9px;background:var(--panel2);
     object-fit:cover;display:block;border:1px solid var(--line);transition:border-color .15s}
@@ -154,6 +154,16 @@
     white-space:nowrap}
   .disc-year{font-size:11px;color:var(--muted);font-family:var(--mono)}
   #discMore{margin:4px 0 20px;width:100%}
+
+  /* Favorites */
+  .fav-btn{position:absolute;top:6px;right:6px;z-index:2;background:rgba(10,13,17,.65);
+    border:1px solid var(--line);color:var(--muted);width:26px;height:26px;border-radius:7px;
+    cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center;backdrop-filter:blur(2px)}
+  .fav-btn:hover{color:var(--fav);border-color:var(--fav)}
+  .fav-btn.on{color:var(--fav);border-color:var(--fav);background:rgba(245,197,24,.15)}
+  .fav-btn[disabled]{opacity:.5;cursor:default}
+  .fav-btn.detail-fav{position:static;width:auto;height:auto;padding:2px 7px;margin-left:8px;
+    font-size:14px;vertical-align:middle;display:inline-grid}
 
   /* Detail modal */
   .detail-card{max-width:640px;max-height:86vh;padding:0;overflow-y:auto;position:relative}
@@ -531,6 +541,8 @@ const I18N = {
     show_more_sections: 'Show more sections ({n} left)',
     detail_unknown: 'Unknown', detail_no_sources: 'No sources found from your extensions.', detail_sources: 'Sources ({n})',
     detail_select_episode: 'Select an episode to see its sources.',
+    title_favorite: 'Add to favorites', title_unfavorite: 'Remove from favorites',
+    favorites_title: 'Favorites ({n})', toast_favorite_failed: 'Favorite failed: {msg}',
     btn_add_source: 'Add', adding_ellipsis: 'Adding…',
     toast_link_copied: 'Link copied', toast_resolve_failed: 'Resolve failed: {msg}',
     toast_deleting: 'Deleting {n}…', toast_delete_failed: 'Delete failed: {msg}',
@@ -598,6 +610,8 @@ const I18N = {
     show_more_sections: 'Afficher plus de sections ({n} restantes)',
     detail_unknown: 'Inconnu', detail_no_sources: 'Aucune source trouvée via vos extensions.', detail_sources: 'Sources ({n})',
     detail_select_episode: 'Sélectionnez un épisode pour voir ses sources.',
+    title_favorite: 'Ajouter aux favoris', title_unfavorite: 'Retirer des favoris',
+    favorites_title: 'Favoris ({n})', toast_favorite_failed: 'Échec favori : {msg}',
     btn_add_source: 'Ajouter', adding_ellipsis: 'Ajout…',
     toast_link_copied: 'Lien copié', toast_resolve_failed: 'Échec de la résolution : {msg}',
     toast_deleting: 'Suppression de {n}…', toast_delete_failed: 'Échec de la suppression : {msg}',
@@ -1205,6 +1219,74 @@ let VIEW='library', DISCOVER_LOADED=false, DISCOVER_SECTIONS=[];
 const DISC_BATCH=12;
 let discShown=0;
 
+/* ---- Favorites ---- */
+let FAVORITES = new Map();               // "type:id" -> favorite entry
+const favKey = (type, id) => type + ':' + id;
+const isFavorited = (type, id) => FAVORITES.has(favKey(type, id));
+async function loadFavorites(){
+  try{
+    const d = await api('/api/favorites');
+    FAVORITES = new Map((d.favorites || []).map(f => [favKey(f.type, f.id), f]));
+  }catch(e){ /* best effort -- cards just won't show pre-marked */ }
+}
+async function setFavorite(type, id, meta, on){
+  try{
+    if(on){
+      const r=await api('/api/favorites',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type, id, name:meta.name||'', poster:meta.poster||'', year:meta.year||''})});
+      FAVORITES.set(favKey(type,id), r.favorite);
+    } else {
+      await api(`/api/favorites?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`,{method:'DELETE'});
+      FAVORITES.delete(favKey(type,id));
+    }
+    return true;
+  }catch(e){ toast(t('toast_favorite_failed',{msg:e.message}), true); return false; }
+}
+function cssEscape(s){
+  if(typeof CSS!=='undefined' && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/[^a-zA-Z0-9_-]/g, c => '\\'+c);
+}
+function syncFavButtons(type, id, on){
+  document.querySelectorAll(`.fav-btn[data-fav-type="${cssEscape(type)}"][data-fav-id="${cssEscape(id)}"]`).forEach(b=>{
+    b.classList.toggle('on', on);
+    b.textContent = on ? '★' : '☆';
+    b.title = t(on ? 'title_unfavorite' : 'title_favorite');
+  });
+}
+function favBtnHtml(type, id, name, poster, year, extraClass){
+  const on=isFavorited(type, id);
+  return `<button class="fav-btn${extraClass?' '+extraClass:''}${on?' on':''}"
+    data-fav-type="${esc(type)}" data-fav-id="${esc(id)}" data-fav-name="${esc(name||'')}"
+    data-fav-poster="${esc(poster||'')}" data-fav-year="${esc(year||'')}"
+    title="${esc(t(on?'title_unfavorite':'title_favorite'))}">${on?'★':'☆'}</button>`;
+}
+async function handleFavClick(favBtn){
+  const {favType:type, favId:id, favName:name, favPoster:poster, favYear:year} = favBtn.dataset;
+  const willBeOn=!favBtn.classList.contains('on');
+  favBtn.disabled=true;
+  const ok=await setFavorite(type, id, {name, poster, year}, willBeOn);
+  favBtn.disabled=false;
+  if(ok){
+    syncFavButtons(type, id, willBeOn);
+    if(!$('#discoverQ').value.trim()) refreshFavoritesSection();
+  }
+}
+function favoritesSectionHtml(type){
+  const items=[...FAVORITES.values()].filter(f=>f.type===type);
+  if(!items.length) return '';
+  return `<div class="disc-section fav-section" id="favSection">
+    <h3>★ ${esc(t('favorites_title',{n:items.length}))}</h3>
+    <div class="disc-grid">${items.map(it=>discCardHtml(it,type)).join('')}</div>
+  </div>`;
+}
+function refreshFavoritesSection(){
+  const type=$('#discoverType').value;
+  const el=document.getElementById('favSection');
+  const html=favoritesSectionHtml(type);
+  if(el){ if(html) el.outerHTML=html; else el.remove(); }
+  else if(html){ $('#discoverBody').insertAdjacentHTML('afterbegin', html); }
+}
+
 function setView(v){
   VIEW=v;
   $('#libraryView').hidden = v!=='library';
@@ -1216,7 +1298,9 @@ function setView(v){
 document.querySelectorAll('.view-tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
 
 function discCardHtml(item, type){
-  return `<div class="disc-card" data-id="${esc(item.id)}" data-type="${esc(item.type||type)}">
+  const ty=item.type||type;
+  return `<div class="disc-card" data-id="${esc(item.id)}" data-type="${esc(ty)}">
+    ${favBtnHtml(ty, item.id, item.name, item.poster, item.year)}
     <img class="disc-poster" src="${esc(item.poster||'')}" alt="" loading="lazy"
       onerror="this.style.opacity='.15'"/>
     <div class="disc-title">${esc(item.name||'')}</div>
@@ -1247,10 +1331,11 @@ function discLoadRows(sections, offset){
 async function loadDiscoverSections(){
   $('#discoverBody').innerHTML=`<div class="state">${esc(t('discover_loading_extensions'))}</div>`;
   try{
-    const d=await api('/api/discover/catalogs');
-    DISCOVER_SECTIONS=d.sections||[];
+    const [catRes] = await Promise.all([api('/api/discover/catalogs'), loadFavorites()]);
+    DISCOVER_SECTIONS=catRes.sections||[];
     if(!DISCOVER_SECTIONS.length){
-      $('#discoverBody').innerHTML=`<div class="state">${t('discover_no_extensions')}</div>`;
+      const favHtml=favoritesSectionHtml($('#discoverType').value);
+      $('#discoverBody').innerHTML = favHtml || `<div class="state">${t('discover_no_extensions')}</div>`;
       return;
     }
     renderDiscoverSections();
@@ -1260,9 +1345,10 @@ async function loadDiscoverSections(){
 function renderDiscoverSections(){
   const type=$('#discoverType').value;
   const all=DISCOVER_SECTIONS.filter(s=>s.type===type);
-  if(!all.length){ $('#discoverBody').innerHTML=`<div class="state">${t('discover_nothing_to_browse',{type:esc(type)})}</div>`; return; }
+  const favHtml=favoritesSectionHtml(type);
+  if(!all.length){ $('#discoverBody').innerHTML = favHtml || `<div class="state">${t('discover_nothing_to_browse',{type:esc(type)})}</div>`; return; }
   discShown=Math.min(DISC_BATCH, all.length);
-  $('#discoverBody').innerHTML = discSectionsHtml(all.slice(0,discShown), 0) +
+  $('#discoverBody').innerHTML = favHtml + discSectionsHtml(all.slice(0,discShown), 0) +
     (all.length>discShown ? `<button class="ghost" id="discMore">${esc(t('show_more_sections',{n:all.length-discShown}))}</button>` : '');
   discLoadRows(all.slice(0,discShown), 0);
   const moreBtn=$('#discMore');
@@ -1291,7 +1377,9 @@ async function runDiscoverSearch(){
   }catch(e){ if(e.message!=='unauthorized')
     $('#discoverBody').innerHTML=`<div class="state">${t('discover_search_failed',{msg:esc(e.message)})}</div>`; }
 }
-$('#discoverBody').addEventListener('click', e=>{
+$('#discoverBody').addEventListener('click', async e=>{
+  const favBtn=e.target.closest('.fav-btn');
+  if(favBtn){ e.stopPropagation(); await handleFavClick(favBtn); return; }
   const card=e.target.closest('.disc-card');
   if(card) openDetail(card.dataset.id, card.dataset.type);
 });
@@ -1399,7 +1487,7 @@ function renderDetail(){
     <div class="detail-head">
       ${poster?`<img class="detail-poster" src="${esc(poster)}" alt=""/>`:''}
       <div class="detail-info">
-        <h2>${esc(name)}</h2>
+        <h2>${esc(name)}${favBtnHtml(D.type, D.id, name, poster, year, 'detail-fav')}</h2>
         <div class="detail-meta-line">${esc([year,runtime,rating,genres].filter(Boolean).join(' · '))}</div>
       </div>
     </div>
@@ -1408,6 +1496,8 @@ function renderDetail(){
     ${bodyHtml}`;
 }
 $('#detailBody').addEventListener('click', async e=>{
+  const favBtn=e.target.closest('.fav-btn');
+  if(favBtn){ await handleFavClick(favBtn); return; }
   const addBtn=e.target.closest('button[data-token]');
   if(addBtn){
     const token=addBtn.dataset.token; addBtn.disabled=true; const orig=addBtn.textContent; addBtn.textContent=t('adding_ellipsis');

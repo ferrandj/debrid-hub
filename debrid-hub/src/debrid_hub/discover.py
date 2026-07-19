@@ -10,7 +10,7 @@ import httpx
 from . import addons
 from .config import Settings
 from .models import decode_id
-from .store import AddonStore
+from .store import AddonStore, FavoritesStore
 
 
 def _encode_token(payload: dict) -> str:
@@ -30,11 +30,27 @@ class DiscoverHub:
     so a forged/tampered token can't be used to make the server fetch an
     arbitrary attacker-chosen host)."""
 
-    def __init__(self, settings: Settings, store: AddonStore | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        store: AddonStore | None = None,
+        favorites: FavoritesStore | None = None,
+    ) -> None:
         self.settings = settings
         self._store = store or AddonStore(settings.data_dir, settings.secret_key)
+        self._favorites = favorites or FavoritesStore(settings.data_dir)
         self._client = httpx.AsyncClient(timeout=settings.request_timeout)
         self.store_error: str = ""
+
+    # -- favorites ------------------------------------------------------
+    def list_favorites(self) -> list[dict]:
+        return self._favorites.list()
+
+    def add_favorite(self, type_: str, item_id: str, meta: dict) -> dict:
+        return self._favorites.add(type_, item_id, meta)
+
+    def remove_favorite(self, type_: str, item_id: str) -> None:
+        self._favorites.remove(type_, item_id)
 
     # -- addon management ---------------------------------------------------
     def list_addons(self) -> list[dict]:

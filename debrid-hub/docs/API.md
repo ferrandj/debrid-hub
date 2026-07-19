@@ -248,6 +248,37 @@ torrent to a debrid service. Request (`TriggerRequest`): `{ "token": "…" }`.
 ```
 `ok` is `200 ≤ status < 400`. A magnet/torrent-backed addon can take a while to
 resolve (this request can be slow); a hoster-link-backed one is instant-or-fail.
+On failure, `detail` carries the addon's own reason when it gives one (e.g.
+`"Résolution impossible"` from a hoster/debrid resolution error upstream).
+
+## Favorites
+
+Mark catalog items (movie or series) as favorites so they show up in their
+own section at the top of the Discover tab. Stored **unencrypted** in
+`favorites.json` next to the other stores — nothing here is secret, just an
+id, type, and the display fields needed to render a poster card again
+without re-querying any addon.
+
+### `GET /api/favorites`
+```json
+{ "favorites": [
+    { "type": "movie", "id": "tt0133093", "name": "The Matrix", "poster": "https://…",
+      "year": "1999", "added_at": "2026-07-20T10:00:00+00:00" }
+  ] }
+```
+
+### `POST /api/favorites`
+Request (`FavoriteRequest`): `{ "type": "movie", "id": "tt0133093", "name": "…", "poster": "…", "year": "…" }`.
+`name`/`poster`/`year` are optional but recommended — without them the
+favorites section can only show the bare id. Re-adding the same `type`+`id`
+overwrites the existing entry (and bumps `added_at`).
+```json
+{ "favorite": { "type": "movie", "id": "tt0133093", "name": "…", "poster": "…", "year": "…", "added_at": "…" } }
+```
+
+### `DELETE /api/favorites`
+Query: `type`, `id`. → `{ "ok": true }`. Removing an id that isn't favorited
+is not an error.
 
 ## Errors
 

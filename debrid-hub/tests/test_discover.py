@@ -60,6 +60,19 @@ class TestAddonManagement:
         assert len(hub.list_addons()) == 1
 
 
+class TestFavorites:
+    async def test_add_and_list(self, hub):
+        hub.add_favorite("movie", "tt1", {"name": "Test Movie", "poster": "https://x/1.jpg", "year": "2020"})
+        favs = hub.list_favorites()
+        assert len(favs) == 1
+        assert favs[0]["id"] == "tt1" and favs[0]["name"] == "Test Movie"
+
+    async def test_remove(self, hub):
+        hub.add_favorite("movie", "tt1", {"name": "Test"})
+        hub.remove_favorite("movie", "tt1")
+        assert hub.list_favorites() == []
+
+
 class TestCatalogSections:
     async def test_enumerates_addon_catalog_pairs(self, hub):
         manifest = {

@@ -5,7 +5,7 @@ import os
 import pytest
 
 from debrid_hub.config import Settings
-from debrid_hub.store import AddonStore, SecretStore, credential_status
+from debrid_hub.store import AddonStore, FavoritesStore, SecretStore, credential_status
 
 
 class TestSecretStore:
@@ -120,6 +120,62 @@ class TestAddonStore:
         assert os.path.exists(f"{data_dir}/addons.enc")
         assert SecretStore(data_dir, master_key="shared-key").load() == {"torbox": "provider-key"}
         assert len(AddonStore(data_dir, master_key="shared-key").load()) == 1
+
+
+class TestFavoritesStore:
+    def test_add_and_list(self, data_dir):
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "Test Movie", "poster": "https://x/1.jpg", "year": "2020"})
+        favs = store.list()
+        assert len(favs) == 1
+        assert favs[0]["type"] == "movie" and favs[0]["id"] == "tt1"
+        assert favs[0]["name"] == "Test Movie"
+        assert "added_at" in favs[0]
+
+    def test_same_type_and_id_is_a_stable_key(self, data_dir):
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "First"})
+        store.add("movie", "tt1", {"name": "Updated"})
+        favs = store.list()
+        assert len(favs) == 1
+        assert favs[0]["name"] == "Updated"
+
+    def test_same_id_different_type_is_a_distinct_entry(self, data_dir):
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "Movie version"})
+        store.add("series", "tt1", {"name": "Series version"})
+        assert len(store.list()) == 2
+
+    def test_remove(self, data_dir):
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "Test"})
+        store.remove("movie", "tt1")
+        assert store.list() == []
+
+    def test_remove_unknown_is_not_an_error(self, data_dir):
+        FavoritesStore(data_dir).remove("movie", "does-not-exist")
+
+    def test_list_is_newest_first(self, data_dir):
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "First"})
+        store.add("movie", "tt2", {"name": "Second"})
+        favs = store.list()
+        assert [f["id"] for f in favs] == ["tt2", "tt1"]
+
+    def test_persists_unencrypted_as_plain_json(self, data_dir):
+        import json
+        import os
+
+        store = FavoritesStore(data_dir)
+        store.add("movie", "tt1", {"name": "Test Movie"})
+        path = os.path.join(data_dir, "favorites.json")
+        assert os.path.exists(path)
+        with open(path) as f:
+            data = json.load(f)
+        assert "Test Movie" in json.dumps(data)
+
+    def test_missing_file_returns_empty_list(self, data_dir):
+        assert FavoritesStore(data_dir).list() == []
 
 
 class TestCredentialStatus:

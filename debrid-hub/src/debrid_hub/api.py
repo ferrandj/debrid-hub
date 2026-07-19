@@ -54,6 +54,17 @@ class TriggerRequest(BaseModel):
     token: str
 
 
+class FavoriteRequest(BaseModel):
+    """A catalog item to favorite -- just enough to render its poster card
+    again later without re-querying any addon."""
+
+    type: str
+    id: str
+    name: str | None = None
+    poster: str | None = None
+    year: str | None = None
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     agg = Aggregator(settings)
@@ -257,6 +268,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/discover/streams", dependencies=[Depends(auth)])
     async def discover_streams(type: str, id: str):
         return {"streams": await discover.streams(type, id)}
+
+    @app.get("/api/favorites", dependencies=[Depends(auth)])
+    async def list_favorites():
+        return {"favorites": discover.list_favorites()}
+
+    @app.post("/api/favorites", dependencies=[Depends(auth)])
+    async def add_favorite(body: FavoriteRequest):
+        entry = discover.add_favorite(body.type, body.id, body.model_dump())
+        return {"favorite": entry}
+
+    @app.delete("/api/favorites", dependencies=[Depends(auth)])
+    async def remove_favorite(type: str, id: str):
+        discover.remove_favorite(type, id)
+        return {"ok": True}
 
     @app.post("/api/discover/add", dependencies=[Depends(auth)])
     async def discover_add(body: TriggerRequest):

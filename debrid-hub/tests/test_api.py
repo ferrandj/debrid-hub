@@ -277,3 +277,33 @@ class TestDiscoverEndpoints:
             forged = base64.urlsafe_b64encode(_json.dumps({"a": "nope", "u": "https://evil.example/x"}).encode()).decode().rstrip("=")
             r = client.post("/api/discover/add", json={"token": forged})
         assert r.status_code == 400
+
+
+class TestFavoritesEndpoints:
+    def test_list_empty_by_default(self, data_dir):
+        with app_client(data_dir=data_dir) as client:
+            body = client.get("/api/favorites").json()
+        assert body["favorites"] == []
+
+    def test_add_then_list(self, data_dir):
+        with app_client(data_dir=data_dir) as client:
+            r = client.post("/api/favorites", json={"type": "movie", "id": "tt1", "name": "Test Movie", "poster": "https://x/1.jpg", "year": "2020"})
+            assert r.status_code == 200
+            assert r.json()["favorite"]["name"] == "Test Movie"
+            body = client.get("/api/favorites").json()
+        assert len(body["favorites"]) == 1
+        assert body["favorites"][0]["id"] == "tt1"
+
+    def test_remove(self, data_dir):
+        with app_client(data_dir=data_dir) as client:
+            client.post("/api/favorites", json={"type": "movie", "id": "tt1", "name": "Test"})
+            r = client.delete("/api/favorites", params={"type": "movie", "id": "tt1"})
+            assert r.status_code == 200
+            assert r.json() == {"ok": True}
+            body = client.get("/api/favorites").json()
+        assert body["favorites"] == []
+
+    def test_requires_auth_when_configured(self, data_dir):
+        with app_client(data_dir=data_dir, api_key="secret123") as client:
+            assert client.get("/api/favorites").status_code == 401
+            assert client.post("/api/favorites", json={"type": "movie", "id": "tt1"}).status_code == 401
