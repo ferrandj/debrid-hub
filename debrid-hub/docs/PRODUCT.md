@@ -12,7 +12,10 @@ Debrid Hub is a self-hosted aggregator for **debrid services** (services that tu
 torrents/hosters into direct HTTPS downloads). It logs into one or more provider
 accounts, presents every downloadable item as a single normalized list, resolves
 the final direct URL on demand, lets you **manage** (delete) items, and hands the
-URLs to **JDownloader2**.
+URLs to **JDownloader2**. A separate **Discover** surface lets you browse/search
+content via **Stremio-protocol addons** (Cinemeta, TMDb-style metadata addons,
+per-streaming-service catalogs, debrid-integrated release addons, ...) and push a
+chosen release straight into a debrid account — without needing the Stremio app.
 
 It is one Python package exposing three surfaces over the same core:
 
@@ -155,6 +158,89 @@ visible error and nothing to grep. Now such failures land in `warnings` →
 `errors[provider]`, and `--debug`/`?debug=true` shows the exact request and the
 exact response that broke, without needing to hand over an API key to debug it
 by hand again.
+
+## Discover: browse/search content via Stremio-protocol addons
+
+Adding new content today typically means opening Stremio, searching, and picking
+a release — Stremio addons already do the hard part (indexing releases, and for
+debrid-integrated ones, resolving them into a debrid account). The **Discover**
+tab talks to those same addons directly over HTTP, generically, with no
+Stremio client involved and no addon-specific code in this app.
+
+### The protocol, briefly
+
+A Stremio addon is just an HTTP server implementing an open, documented protocol
+([stremio-addon-sdk/docs/protocol.md](https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/protocol.md)):
+a `manifest.json` declaring `resources` (`catalog`, `meta`, `stream`, ...),
+`types` (`movie`, `series`, ...), and `catalogs`; then plain GETs —
+`/catalog/{type}/{id}[/search=q&genre=g&skip=n].json`, `/meta/{type}/{id}.json`,
+`/stream/{type}/{id}.json` — each returning JSON. `addons.py` implements this
+protocol generically (`fetch_manifest`, `fetch_catalog`, `fetch_meta`,
+`fetch_streams`, `trigger_stream`); nothing in it is specific to any one addon,
+so any addon a user adds — today's four (Cinemeta, a TMDb-backed metadata addon,
+a per-streaming-service catalog addon, a debrid-integrated release addon) or a
+future one — works without a code change.
+
+### Addon manifest URLs are secrets
+
+A manifest URL frequently embeds a personal config token in its path (account
+id, sometimes a debrid key) — handled exactly like a provider API key:
+`AddonStore` (`store.py`) encrypts them at rest in `<data_dir>/addons.enc`
+(shares the master key with `SecretStore`'s `secrets.enc`, separate file), and
+**no API response ever includes a stored addon's URL again** — `GET /api/addons`
+returns only `{id, name, description, resources, types, catalogs}`. Entries are
+keyed by `sha256(url)[:12]`, so re-adding the same URL updates in place and ids
+are safe to expose to the browser without leaking anything.
+
+### Streams are opaque tokens, not URLs
+
+`GET /api/discover/streams` never puts a raw stream url in the response either —
+each one is replaced with a token (`base64url({"a": addon_id, "u": url})`,
+`discover.py:_encode_token`). `POST /api/discover/add` decodes it and validates
+the embedded url's **host matches the addon it claims to come from** before
+fetching it, so a tampered/forged token can't make the server fetch an arbitrary
+attacker-chosen host — the one meaningful hardening beyond this app's existing
+opaque-id pattern for debrid links, since this specific action causes an
+outbound server-side HTTP request from client-supplied input.
+
+### "Add to debrid" is just fetching the stream's own url
+
+There's no separate debrid-specific code path for this. Per the protocol, a
+client "plays" a stream by fetching its `url`; for an addon wired to a debrid
+account, that request is what triggers the addon's backend to resolve/cache the
+release into the user's account — the same thing Stremio's client does when you
+hit Play. `trigger_stream()` is just that GET, deliberately not reading the
+response body (some of these are 50+ GB video streams) — only the status code
+matters. Confirmed against a real account: querying `/stream/...` has no side
+effect; only fetching a specific stream's `url` does, and for a magnet/torrent-
+backed addon that resolution is asynchronous (can take a while — TorBox-backed
+sources have taken minutes) rather than instant-or-fail like a hoster-link one.
+
+### Search and meta aggregate across every configured addon
+
+`DiscoverHub.search()` fans out in parallel to every catalog across every addon
+that declares search support (`catalog.extra` containing a `"search"` entry),
+deduping results by id, first hit wins. `DiscoverHub.meta()` fans out to every
+addon with a `meta` resource and **merges** results field-by-field — first
+addon to set a field wins it, later ones only fill gaps — so e.g. one addon's
+trailer and another's cast photos end up in the same response. One addon
+failing (timeout, 404, malformed JSON) doesn't break the rest;
+`asyncio.gather(..., return_exceptions=True)` throughout.
+
+### Discover UI
+
+`index.html` gained a **Library / Discover** tab switch in the header.
+Discover renders one horizontally-scrollable poster row per (addon, catalog)
+pair — `GET /api/discover/catalogs` is what enumerates those sections, so "browse
+by streaming service" falls out naturally from whichever catalog-providing
+addon is configured, with no per-service logic in this app. The search bar
+queries `/api/discover/search` and replaces the browse sections with a flat
+results grid. Clicking any poster opens a detail modal (`GET .../meta` +
+`GET .../streams` in parallel) showing description/cast/poster/background and a
+list of sources, each with an **Add** button that calls `POST
+/api/discover/add`. A separate **🧩 Extensions** settings modal manages addon
+manifest URLs (list/add/remove) — it never displays a stored URL back, matching
+`GET /api/addons`.
 
 ## Configuration & secrets
 

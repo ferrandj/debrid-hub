@@ -4,7 +4,9 @@
 > every link across your accounts as one normalized list, groups TV episodes into
 > series/seasons, shows quality/language badges, dedups the same release across
 > providers, resolves direct download URLs on demand, lets you delete items, and
-> feeds URLs to JDownloader2. One Python package = web UI + REST API + CLI.
+> feeds URLs to JDownloader2. A separate Discover surface browses/searches content
+> via Stremio-protocol addons and can push a chosen release into a debrid account.
+> One Python package = web UI + REST API + CLI.
 
 Key facts for agents:
 - Stateless server: everything to resolve or delete a link is encoded in its opaque
@@ -22,6 +24,18 @@ Key facts for agents:
   push to master, amd64+arm64); updating is `docker compose pull && docker
   compose up -d`. There is intentionally no way to push code into a running
   container from the UI/API — that would be remote code execution.
+- Discover addon manifest URLs are secrets (often embed a personal config
+  token) -- encrypted like provider keys (`AddonStore`, `addons.enc`), never
+  returned by any endpoint once stored. Streams are opaque tokens too; a
+  chosen stream's real url is only resolved server-side, host-validated
+  against the addon it claims to be from, before being fetched. No
+  addon-specific code exists anywhere -- `addons.py` implements the open
+  Stremio protocol generically, so any addon a user adds just works.
+- "Add to debrid" from Discover = fetching a stream's own url server-side
+  (`POST /api/discover/add`) -- for a debrid-integrated addon, that's the
+  exact action that resolves/caches the release into the user's account, same
+  as hitting Play in Stremio. Irreversible in the same sense as any debrid
+  add. Querying streams/search/catalog has no such side effect.
 
 ## Docs
 - [Product & architecture](docs/PRODUCT.md): concepts, request flow, providers, grouping, settings, extending.
@@ -37,6 +51,9 @@ Key facts for agents:
 - `GET /api/config` / `PUT /api/config` / `DELETE /api/config/{provider}` — encrypted key management (never returns key values)
 - `POST /api/config/reload` — re-read the encrypted store from disk and rebuild live providers (pick up a key written out-of-band, e.g. via `docker compose exec`)
 - `GET /health` — liveness
+- `GET|POST|DELETE /api/addons` — list/add/remove Stremio-protocol addon manifest URLs (encrypted, never returned)
+- `GET /api/discover/catalogs|catalog|search|meta|streams` — browse/search/enrich content across configured addons
+- `POST /api/discover/add` `{token:"..."}` — resolve a chosen stream (adds it to a debrid account for debrid-integrated addons)
 
 ## CLI
 - `debrid-hub providers | list [--debug] | resolve <id> | rm <id> [-y] | serve`
@@ -48,5 +65,7 @@ Key facts for agents:
 - `src/debrid_hub/providers/` — one module per provider (subclass `Provider`)
 - `src/debrid_hub/api.py` — FastAPI app + request models
 - `src/debrid_hub/cli.py` — Typer CLI
-- `src/debrid_hub/web/index.html` — self-contained web UI (series grouping lives here)
-- `src/debrid_hub/store.py` / `config.py` — encrypted secret store, settings
+- `src/debrid_hub/web/index.html` — self-contained web UI (series grouping + Discover UI live here)
+- `src/debrid_hub/store.py` / `config.py` — encrypted secret store (provider keys + addon URLs), settings
+- `src/debrid_hub/addons.py` — generic Stremio-protocol HTTP client (manifest/catalog/meta/stream)
+- `src/debrid_hub/discover.py` — DiscoverHub: orchestrates addons.py + AddonStore, opaque stream tokens

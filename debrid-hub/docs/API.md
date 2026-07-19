@@ -161,12 +161,101 @@ Each id is reported independently; one failure does not abort the others.
 ### `GET /health`
 Liveness. `{ "status": "ok", "providers": ["torbox","mock"] }`
 
+## Discover: Stremio-protocol addons
+
+Content-discovery addon manifest URLs are managed here — encrypted at rest like
+provider keys, **never returned by any endpoint once stored**. See
+[`PRODUCT.md`](PRODUCT.md#discover-browsesearch-content-via-stremio-protocol-addons)
+for how the protocol side works.
+
+### `GET /api/addons`
+Configured addons. Safe summaries only.
+```json
+{ "addons": [
+    { "id": "d29ee8b9d34b", "name": "Cinemeta",
+      "description": "The official addon for movie and series catalogs",
+      "resources": ["catalog","meta","addon_catalog"], "types": ["movie","series"],
+      "catalogs": [ { "type": "movie", "id": "top", "name": "Popular", "searchable": true } ] }
+  ], "store_error": null }
+```
+
+### `POST /api/addons`
+Add (or update, if the same URL is already stored) an addon by its manifest URL.
+Request (`AddAddonRequest`): `{ "url": "https://…/manifest.json" }`. The server
+fetches and validates the manifest before storing anything — a bad URL is a
+`400`, not a silently-stored broken entry.
+```json
+{ "ok": true, "addon": { "id": "…", "name": "…", "resources": […], "types": […], "catalogs": […] } }
+```
+
+### `DELETE /api/addons/{addon_id}`
+Remove a stored addon. → `{ "ok": true }`
+
+### `GET /api/discover/catalogs`
+Every `(addon, catalog)` pair across all configured addons — what the UI's
+Discover tab renders as one browsable section (e.g. one per streaming service,
+if a per-service catalog addon is configured).
+```json
+{ "sections": [
+    { "addon_id": "…", "addon_name": "Streaming Catalogs", "type": "movie",
+      "catalog_id": "nfx", "name": "Netflix" }
+  ] }
+```
+
+### `GET /api/discover/catalog`
+Browse one catalog page. Query: `addon` (id), `type`, `catalog` (catalog id),
+optional `genre`, `skip` (pagination offset).
+```json
+{ "items": [
+    { "id": "tt0107290", "type": "movie", "name": "Jurassic Park", "year": "1993",
+      "poster": "https://…", "description": "…", "imdbRating": "8.2" }
+  ] }
+```
+
+### `GET /api/discover/search`
+Search across every configured addon+catalog that declares search support, in
+parallel, deduped by id. Query: `q` (required), optional `type`. Same item
+shape as `catalog` above.
+
+### `GET /api/discover/meta`
+Enriched metadata for one item, merged across every addon with a `meta`
+resource — first addon to set a field wins it, later ones fill gaps only.
+Query: `type`, `id` (IMDb/TMDb/TVDB id, whatever the addon accepts).
+`404` if no configured addon has metadata for it. Response is whatever the
+addon(s) return — commonly `description`, `cast`/`app_extras.cast`, `poster`,
+`background`, `landscapePoster`, `logo`, `genres`, `runtime`, `imdbRating`.
+
+### `GET /api/discover/streams`
+Stream/release options for one item, fanned out to every addon with a `stream`
+resource. Query: `type`, `id`. **Raw urls never appear here** — each stream
+carries an opaque `token` instead.
+```json
+{ "streams": [
+    { "addon_id": "…", "addon_name": "Lumio · Osito", "name": "[TB⚡️] Lumio",
+      "description": "2160p • WEB-DL • …", "size": 55395972448,
+      "filename": "The.Matrix.1999….mkv", "token": "eyJhIjoiNTIx…" }
+  ] }
+```
+
+### `POST /api/discover/add`
+Resolve a chosen stream — fetches its real url server-side (token decoded,
+host validated against the addon it claims to come from). For a
+debrid-integrated addon, **this is the step that actually adds the release to
+the user's debrid account** — irreversible in the same sense as adding any
+torrent to a debrid service. Request (`TriggerRequest`): `{ "token": "…" }`.
+```json
+{ "ok": true, "status": 200 }
+```
+`ok` is `200 ≤ status < 400`. A magnet/torrent-backed addon can take a while to
+resolve (this request can be slow); a hoster-link-backed one is instant-or-fail.
+
 ## Errors
 
-- `400` — bad request body (e.g. no `id`/`ids`, or `PUT /api/config` with no known field).
+- `400` — bad request body (e.g. no `id`/`ids`, `PUT /api/config` with no known field, an addon URL that isn't a valid manifest, a discover/add token with a host mismatch).
 - `401` — missing/invalid Bearer key (when auth is enabled).
-- `404` — unknown provider on `DELETE /api/config/{provider}`.
+- `404` — unknown provider on `DELETE /api/config/{provider}`, unknown addon id on `/api/discover/catalog`, or no addon has metadata for `/api/discover/meta`.
 - `500` — server/store failure (message in `detail`).
+- `502` — an addon request itself failed (`/api/discover/catalog`, `/api/discover/add`).
 
 Per-item failures in `/api/resolve` and `/api/delete` are **not** HTTP errors — they
 appear as `{"error": …}` inside the `200` response so partial success is visible.
@@ -181,4 +270,12 @@ curl -s -X POST localhost:8080/api/delete  -H 'content-type: application/json' -
 
 # with auth
 curl -s localhost:8080/api/links -H "Authorization: Bearer $DEBRID_HUB_API_KEY"
+
+# discover: add an addon, search, get sources, add one to your debrid account
+curl -s -X POST localhost:8080/api/addons -H 'content-type: application/json' \
+  -d '{"url":"https://v3-cinemeta.strem.io/manifest.json"}'
+curl -s "localhost:8080/api/discover/search?q=matrix&type=movie" | jq '.items[0].id'
+curl -s "localhost:8080/api/discover/streams?type=movie&id=tt0133093" | jq '.streams[0].token'
+curl -s -X POST localhost:8080/api/discover/add -H 'content-type: application/json' \
+  -d '{"token":"<token from above>"}'
 ```

@@ -34,6 +34,11 @@
     display:grid;place-items:center;background:var(--panel2)}
   .glyph img{width:100%;height:100%;object-fit:cover;display:block}
   .brand small{color:var(--muted);font-weight:400;font-size:12px}
+  .view-tabs{display:flex;gap:2px;margin-left:14px;background:var(--panel2);border-radius:9px;padding:3px}
+  .view-tab{background:transparent;border:none;color:var(--muted);font-size:12.5px;font-weight:600;
+    padding:6px 12px;border-radius:7px;cursor:pointer;font-family:var(--ui)}
+  .view-tab.on{background:var(--panel);color:var(--text)}
+  .view-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .dots{display:flex;gap:12px;margin-left:6px}
   .dot{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-family:var(--mono)}
   .dot i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
@@ -128,6 +133,56 @@
   .grp.ignore .gname{font-weight:500}
   .grp.ignore + .kids{opacity:.55}
 
+  /* Discover */
+  .disc-section{margin-bottom:24px}
+  .disc-section h3{font-size:14px;margin:0 0 10px;color:var(--text);font-weight:650;
+    display:flex;align-items:baseline;gap:8px}
+  .disc-section h3 small{color:var(--muted);font-weight:400;font-size:11px;font-family:var(--mono)}
+  .disc-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+  .disc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:14px}
+  .disc-card{flex:none;width:126px;cursor:pointer}
+  .disc-grid .disc-card{width:auto}
+  .disc-poster{width:100%;aspect-ratio:2/3;border-radius:9px;background:var(--panel2);
+    object-fit:cover;display:block;border:1px solid var(--line);transition:border-color .15s}
+  .disc-card:hover .disc-poster{border-color:var(--accent-dim)}
+  .disc-title{font-size:12px;margin-top:6px;font-weight:600;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .disc-year{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  #discMore{margin:4px 0 20px;width:100%}
+
+  /* Detail modal */
+  .detail-card{max-width:640px;max-height:86vh;padding:0;overflow-y:auto;position:relative}
+  .detail-bg{width:100%;height:170px;object-fit:cover;display:block;background:var(--panel2)}
+  .detail-body{padding:20px}
+  .detail-head{display:flex;gap:16px;margin-top:-64px}
+  .detail-poster{width:96px;flex:none;border-radius:9px;border:2px solid var(--panel);
+    box-shadow:0 8px 24px rgba(0,0,0,.55);aspect-ratio:2/3;object-fit:cover;background:var(--panel2)}
+  .detail-info{padding-top:64px;min-width:0}
+  .detail-info h2{margin:0 0 6px;font-size:18px;line-height:1.25}
+  .detail-meta-line{color:var(--muted);font-size:12px;font-family:var(--mono)}
+  .detail-desc{font-size:13px;line-height:1.55;color:var(--text);margin:16px 0}
+  .cast-row{display:flex;gap:12px;overflow-x:auto;margin:16px 0;padding-bottom:4px}
+  .cast-card{flex:none;width:60px;text-align:center}
+  .cast-card img,.cast-card .noimg{width:56px;height:56px;border-radius:50%;object-fit:cover;
+    background:var(--panel2);display:block;margin:0 auto;border:1px solid var(--line)}
+  .cast-card .cn{font-size:10px;margin-top:5px;color:var(--muted);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .src-list h3{font-size:13px;margin:18px 0 10px;color:var(--text)}
+  .src-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:9px;margin-bottom:8px;background:var(--ink)}
+  .src-info{flex:1;min-width:0}
+  .src-name{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .src-desc{font-size:11px;color:var(--muted);white-space:pre-line;font-family:var(--mono);
+    margin-top:3px;line-height:1.4}
+  .src-size{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap}
+
+  /* Extensions */
+  .addon-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:9px;margin-bottom:8px}
+  .addon-info{flex:1;min-width:0}
+  .addon-name{font-size:13px;font-weight:600}
+  .addon-meta{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
   /* States */
   .state{padding:56px 20px;text-align:center;color:var(--muted)}
   .state b{color:var(--text);display:block;margin-bottom:6px;font-size:15px}
@@ -219,19 +274,24 @@
   <div class="wrap top">
     <div class="brand"><span class="glyph"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAQKADAAQAAAABAAAAQAAAAABGUUKwAAAZ3UlEQVRoBY1aCZhdRZU+de99+3vd/TpJZ22ykj0EEloCqIQZohH9XBAGcWNQEBBcR/3UkXGGUT7H73NGRXRwRIdBGHXQ0XFj5oMxQRIINCQhC2SBpNOdTpqk17fc9+5W859T971+aYLfVF7XrVt16tR/Tp1zarlRikjTaybLsp1E2rKSQtGkVaSkjJ54cqY02BhG3ITUaJOXP5E1mU4C0Rr8lY7CyA/8ehQFr9Udfc1gUwnQPZObnsp0RpEdRpx0FBkiwATcMzoy4piPjMxlwQAh4nrz0Bp9m+oyhear9OExTA0gkGXbjo2ugeeOutVhdDcYWvN4gNaqTK4zW5hXq/s1txwGvnBET1DGrFuIzVSg4tUFq0EmM8O9TXfJuWx+QmWaDA3KBlRcqWw7mcnkkgmnWh6suaMNtvHT0DZelGorLtBWvjwxgolTqgkCBGZ4Qy85Z/gz0C0xKhCZJosVaOzK8ObeUL8RIxJhRAAjCYNGI0Q1o0gTdxRurHltWU4+36HDUnlioHUqhIJJGUihuMgPHbc6diZ0aTYZD2OkwhjogTILwLgtC39acDOtZcfDN3szDMgQaR0pLsMmJUeBwTdBoxJ9+E9ybpMySHQ22+ZY/sTYUVODfFKAQsd8P0zV3PGzoQfKRhcGbWRQGmWoWgE3CvjZIhJagd4my4FUPATAhQHpkEh+XOBJgJtqHSBniCKeYJUyjxbjloFNGYJH6XTBUW65dNwAcswjlW7XKlerjZwNfYMDaxeJVY68ARroBSs55GRT06bnu+e0LTwn3z07OaNoZzORZWvf98ZL7snh6pH+8pH+yuBgWB4jFWgKKLIgA2ZDnDuMMfM4QCySnykGtFWvl+1sRzLV5tUnBA0Ilcp3nFupVNCNJZUMT9Y6vxvEeIo6YTBNfUPHrPVUeua8rkvWz9i4IbNmWTizy8+kAgvoyIfqNbTNLNE5GerEREn1DbhP7jz9v9vH9r0YVUYgCWEeokDrkMXAhJg54bJRvMmN+hgUkGTTqUrpCIyKX1PpDpWYUa+V2Bia6NGA1LRpQd+Abol5JEil84uWdF99ZcdbL/e751Yicl0KoUdjRIADk4fdROSHnCOgo0YlKZ2mfK2e3Ll37Ce/Gf7DE2HpFCkfzQrWBfQc+AHaCGDQGzQxIoBMJrORf8r3SixAtnBO3UOgR8REMoKiW0PxXDC6B26LVWkniJzEtDnnvO/q4vveWZkxvVTmQbHcKZj3qYno6Kmob8gfGtWVMvNLpWlaQXV36QUz67M76wk7qEG5OlFQbUnK9+4cv/uBse3bSFeUDnRTjNg3oAGTYklgL+islJ1Mkls+zi6Yzs+v1WrGXBrUeBoBTC4+Co9UtobZULrjdRvmff62+spVpQlWLdcdOx1s2V3bsqP+wp5w5Kim00QujEjYojmlqM3Kz7WXrLTeuEFvushf3M2KDiOrw+pUNfXAz0fu+VFYOollS6ZCDMlMCM+GSaJWRgbxNRYHt3yUlwknPaded43mmXDSWYEY1SZKIqTgB3/Ndv3F1W2f+ug4tfllslJkHeivPfhI9bHfROXniXEDVzMiobsMz5YtwYd9oaBSK6zLNtNfvjNavUxXiRI6PVO17dgx9vmveQOHyfJVBFsyP+MSgAU+TUlQ1Kl0znePQ4C0lezy/RpUbcSM7d5YP+cmzgB6Qjm5mbfe6Nxw4/iwDUhWqRTc/8vaz++PvJ1EVVLwaZiRBFO2OiTD01izUSpyn3+UUPYq9a4P6I9cpwtFTIU9xyr2HSh97I764X1khyQyxF4hYXeKAIlkJvSGbKxwysrwujs5npFFjOeMgJOcfvON4fW3jA2CrbJ2HXC/+Lf1J+7WIXQG98iSnVY2uOFnw0ZhnI3cFGxTL3LCqOCsA7T/Cdpy0Fp8rp41Sw9HtXkz8pevC7c9Ew0PExZGRNcAUZrDfwOe0QjmAmszlFhlAYgFCNk5RGG8rMb/WAaOPLCcUOWuuZpu/iu4DceuR7bUvvLZaPj3ZGEiAD1lcDfUj46ymwDPOABIgddsCMaOJ5QIBnU1vo8e61XTFqoli3WdPJ/UM89Fxw5TlGyfv3TxFW8cPnSIIyzDa5iQhEqbBaiYGcg2BOBJ58SSIDPoLaBPrVvvfO6u8qkMyvTr3/t3f5qC3WRnWOswLUgo/Vo7iwHxsGgS1XCueG3mn8iAAtZsLBnH1LZeyp2jnuvVX/pMdODZZLF71XXvWfvNL0Uq7P/V72CVZyQRxrYcHVYxlXGCdDxYMzVGxnpvFTvsT91Rdts5qDy+Nbz3M6SPkFMAdNE0cEjXWHLoB6+YZNEDciQzD4Y5V8ChYSJKc2ZhPabosL7nY0TjipwFf/aOxZ+8bfy8tUcdGnt0q3i/SCCHDhnLsGZ2jowzBfvkOFLCjkW53/qBrnnApF/YQdFRQQ+XFTtpCC6oGblRuyDnaWRJyIbxGL7IlXJ4B8GNaMXaIoFOD9uJtnV33Gld+/4DXqI2pKc55dFdO0VS0YLRhRgSYBuLas6ADNqAIiMZg8OSofRIP22/17FxLlNWMq0KMy3e/4gZMAbmzmpnCVhLYajr9ToFgZV02JVTBbIKHHYgA9o5RRS4oTeuI4RvSGKTDUN1CkvOD979wb5hW2Hpdmyv/7DbfxRew9wFt/RFZtDyW0OAePyWqYhrEPW479/c+fdXveNK34cNGaXKs0VgUImWmGmt7g0cH9r6+I6f/+cjrwwOZhf35G7/tM6mMQ2wWyzYToLSeV3+95+evPefKQk0PAmIOYXV549qO6xFMLFEgurP94ZelZIQ3ogN3qYwOVpDgObgzSbRJ1BBnytWrfjk7Te2t7fheAn4WAUZpkmsdSPMGe+XbLCuvXrz7be+/6Zbv7B960/9h2foW74SQNfwmhQlslSYRcHYsKxWwIBZtBHukmvWjlYpqKNaORmq7nyaVAZTJ4sjVGnA8eiYZ4HB2y5+MYNzsSkJV8lMRfqjt1xfLLa7bs2r+/W653k+/7BJxs8UPL+On7SavFp1K5Xa8uWLHvjhN+ads8B/9B7r8PMK+xov1LXQr2l/uFTd8ThUz1DEB+xMXp+7ujZGvktYV/V4pbJrz+zrbszMX4hAwkqaTCiLIXAEQFMTP4otZbCNguC8C9Zc//5rYNZJTolEwkkgTzoo8DPBdfjjX4rfYfNyC8AaqlZrixZ133DDB0hP0Eu9MFjGC1Vayj960B/o4z0Ha01hE5uaNdudcY5f0oGrQ09F/YfDodHC1ddl37QJy5kosymDoORMI5KIXKwFLskbWvCUiYnCiy+6cM/+l2rYKKOWww5AIC5hpQ95EoVKdMANEGDp0sXFYhtmB5SwDD+INmxYR5TDKYo1xbs73mQHu57WfpWcdvAQn/YT564o6WxQCamOfTr5+3oT+WKta1Fq4xXqR/+qgyoD5EDEHUxCCTppvLF2RAiDnpcbrRL2fffd9/17v4dLGpaKR+MdPqK4k8xghny/3uwvBbV8+aoHH7p/6dKFvo9rARUEYSqV4t1ocTqQ8Q+9cdB5bhsvYSYxBk3LL3AnsKdmGiyM3u6nsivOd+Hj3SsSSxZ7+3Zj3ni6JMUKlnNSs4ZVZl7iGQDXSAe+p0Nsv3gTNn3G9Msuv+zjn/jED3/0g8e3/vfFl1yKkCMiQSr8wD188cVnHnjgIRgT5gf3SbDSE4MngEjPOVeXhRzbromJaP9uHNFkCcMqBh/OhIvOD4d5T0ieUtVaeGiPWruhXCWPMsm15/PRLkaHRxyMgdZEoVgsRm/mAAWZWu7Dyy32Qt7qtec//LMfd82cCT9A+9jYRN+xYxwiVJJDU9wXthVYVhSEuFdDHU/5s0/3UnsxKCyhqmgM29DRPt59zF1KVprRRDVn+rSgcxENaZ4irAk4UQwd8WsWVIdAmli+Ru4HBB6PFC9pKEEAVLDq5cFt/NpIclOCF67ZtOmKOXPnjeNQS/VUOrlz157+Y0dYi1hWeacgVNw7d2FPj+fDdnjOq667/Y+P08KVUVikWijLcUTTl9jf+B8rbWmH/UEj8HuON5InFOQ0EfXt1uGp4OAe2BtOHc7shSqdhXfzKIxQ/uSFY7AUWrOYwjSIDNgHpDdseF2lWgsQECjCMWbbtqei0OUlFuh53oRc645ps1avXlWveSFOW4nEsWP9L7zwgnrbO3VJ7Ic1poOhVJDKUEqzArG0wAwxOQY9BEiQfmkHAEUnXrbqAdbkKN+l8gWNNaIVLNsIohALI6EECxQ6saXxdgAPvMa2EemuWbOWLVtWqeKqlS2j6taf3P4ke+EkeuEdhctXLO3q6qp7WLSw9bR3PrerVKuorh7CJQhIZDQOi5gNDI79kQkKiE4efhjZUgmfjj6LudUTo07N821Hp/K4rKURoGpKYBgZH0DZoJUcPBA9UMeGxRJgN+6vXbOyvaMTM4AK3LkOHD+5b+8eth9OqOMAwGwo6ll/gWUngxDRBOzU9m3bKT2d0ssJlxYJRB/U4gQiwjC5jIxKyAP02KtDI+N9NPQSM4cTuJ7GBYSTVHA845Y8igzFBSOAeedm9OdaLgGSIWOho56edX5Avo8BKZtM7t2zf/j0Sd4YxDppyKAcUGIvBA/ABOCuqfepp2j2Ku3NIDdgfGkcaA7SYK/ZwLGmcJZKt+m2TRr7OmAAy5PP6ypuvpJYER0sNuzWMTAGhxTjZ6zYTrckQc/QjRzcgrK2U5nzL7igXK35gAVpNO3YARvFepNi/EzPCbum2d1z15y3BnsOhCDHsfr6+g4eOkDrPk4VG5tT1nfGou136ye+Y/qY0fWqd+krN1Mdl0dsujQA5iDFpjulQnSEWYWaj2pokx7xk8uIAjw0fkZGtn68gVQoUQ9Yc+fPm9c933WhCkQz6NXd+WyvBFCEGbEGKBL0oX/zTde3d0zDRghv6URi65YnqvUSdfaQi1iDPaZFOFQcg31jWGN+YFmnORtpBK4cypaBqF+YQ+/pNqXT8A3EWV3DAmHwx8j41cyAyGCMnikkxoJIFMuwgjVrViXSuXLZxQEUDtDff3wvOwCaQr4rkelKZnMfue2m97z3fRMlGUmpcrnys588SInpKrVS1+p8pIEplProlUOQjs/q6Aq5cShv66ExoOeDgQpP0PAhNk4dWe2zPfYE0uVhXZnAOKJdIwaPjyRRiLXHiPnZmkQyVKxfv97zzdoU4R7Gq1U3b/5zeKqyExxpLHvunNmXXfb6FatWl6seb5CUKuTzD/7b/fv39apZb9A0E5PDikk6NLybsOFUWR6OJQ9Uvltbi6nk8tYaB4WJfdrFlUQWikvMPhcTxgK80qfdUryWMUIGasBCgAZMbsCbvDIIfgGaVC63YuXqcqWG3Rtqwqg+p3vBl7/6DbgKDIhznGthB54/No44jbLO5XK7du769j/+A8fZ4joKkhRW4Uqs7xM7WItseLJ6hB4Vz6NanuogAKQ0DT3NkjBBMjFvFS4tmeXAPmwFcIsmc8B0IIYCUDDrACoYMNegTmRgUEhhOH/+os4Zs+AAfIQEXK0hjOt6gG+bGsmFKR8zgX7f3v2f/cTN4+PQdE5Pv5TgiDrBnwi8Mp14RqxfFhAZQRd7qIoFGK6Kda1Kw/AQ3qrYmS41e3VYJjurIywLohoGzr3MaJxDgDhJA8rmKS6BYhSsXbtGq6TnVcDBtuEFbDShpYE+YpnAmZODI3MyhTPnLx7+j+/8011joyNEHaQLdOIYDT1AbTOp81IqDdDoQbm9MwsBFvgMFdZRHZfaWMks8k7TxAHefYVRevG6WnYujZIqn4j6drH98LkGmBpIBfgZ22mZhqZAfH8FdBes74kIH1tZVECXZMwGt0Y8T/yZxfNGBod373r2kV//Yt/zWKGTZBXnrH9zx8oLsJv1h/ce+cM3w/X3Kb9P10dxj8YDoSu+fGZmq+Q87cHF8aHJVtX9uvYKR+fIyp73lrEyFg1SfVujsRP4eiLQm+hZEsgDm8AZqohds6CPDUfmC2UmWrhoQSabZQeI+7KPmjapwZ45KpcmTp864dXwCRGqzeKiXamZax74cfimdbhwz5f9/Zs+MHHiJYpGyIeD8vInfbENsikzp4EMN1wl7YGJnSouL3zol6fHi3ZOq99dFRzYQjgjc2JIYkdytRiOTJoQGmNYhoyNCMTRkYN7ZZvCb9LfFExuZEI/4MYNSo4vf8wVr10Ycm13gKww6ohCDf25faTgiBgR9PFgfK1SRkSO+Wg4sY34o9sues9EvRNnaPv0M/7LfxSZeWlrUMYY8G4EEJmaa5cZADTGYbBl10lIIsdBMGEPA60ZU8omIMKi5F4aPPnuwZkoa3+E704xRhChCTMDg0A/gwMF/ODNbBsSfFFO4Kiamb2Wll1XPxXZeRU9+W2NQ76dF8gy5uTI3N/4APiKVhq8mbWsZ1yBiIaI0zFXLbgYlyHRE9+lCN++msnMlJAxMlx4JZ1UO25FPDcM8bUgVK4TWUkrmWn38R0sQmCHLpBA3OxlojbLr1SisPFzI2NFILKGHgte/C/xGUPfMqywQGauvDPyJc7UCV+mNwOYylC94as05/NUvMTOjeljz/CcMoFEQ5GQN2coYBY6ZnV94V8ym67x8gvCMYcq8HF7zrq18668Jhjqr/YjyDSG4FHkjzmgO859YfGSm9y5N9XHIjtZiR7/kJ4Y5E9XQsdZi/ohPY5CWM8hQ1pmMOYn1MxYeoE1Dk2BGt5PXW/WJUfNv9gKD+mhw4hMTBGjl5kEd9y81WvlcFq5++3haJIDfJWiqio5nRP795Yeu0/z5zF8GQCluSoFByMPrhaDwurNdOHXyyeBKKH2fTk6/DBZuQYBI2okTAVOgVheXMQpEYAthjlJEo7xizyAsnpc+YM0+216TFnLNtq1F6LTffK1D+4Lxev8hde2rb/KfbmXwhq9/AR/BZ72ej7E8DHQVi897j/0YV1BiFSLNt44a9Xlw4dx6yaWY1QQ+rnllzmX3jM+mFWJlP3KT6JnvsgLM8vZiscg5JxjIc8Af00xJhRDNpoX7TJZ3APuNboLp18qbtTjtrX8Ckf3h68c4agCBLgBW/TRavub6PCDuLXF/YXq26LsAhU2kG+poR30qw9qd0iCiW5f+td2bv3woQfFHmRFi8L8eW91er41fjyPsO64W8LtH9Y4f/B3T0EvgBtYYk/ACiACYAZUGj7bwNo6D6gzsYntjT3+1B9VOkP5i6IxZS/elMB/vhg6AMOFq1LnRq2L1AdY2LiDX6gGHlWZOQrW8th7dXWQlydWZ5huezt5mfGBh3jESNuZXPH1t4QL7igddxQu+7xt4fbrtTvGFxaAGKMWPTaUaXRqBGhEoSZ+lgQJtI0qlgFlfGhyKErrvXcqv6Lnfdo75jvTbs9uXlfv/V4wsEu7NY6HibSGCXEXLNAV9eStWJTwX0wUZeXmQvZPYS4Yx/EATuvkllyUWnVrud5T76/b2bxT/q3/7G2RO86RZxK9AdyaN0GyIeGapsj/K4rli/9MVOMePB9cKYEV3fgzusKX0e5r9YI7yIe9kjOtEmy5QadWqnO/lrR7k9YpbJdsbJSg/CjAxxc7mXachB0mbA8f5HPkvrkyeM/p/i/m13/GWnRLeYgHT2QQNL/vvfB1nJ/MZZEMzQhkdOQGtLxxxv8BR4f4zx3KYQHkYHIWAdCfZTBJ1ju4O4ijErWtpEVf0ukNCIvK/y09+3fUdZ3u3AyV86bUkc+ViYRKJrB9cgI74ZKDhRi3LRNbx0/ehcu4dM9DLi3ELtAJXgyP3OWffFS2IY0A3Rj1NZ6ylQhYAExrJ3R1Jh1AN4VuRjrxFNYEZMBUVDlozryKZlyvistU5dd08Lu6PACtS1/EdYguUdgEb40DL5p4qp325UQz0+t/GFSO6aEf+wMPRX6Jl+R4LW+q7ExQk288G9CLDoaZ1HIgQAvcSTpTMuyMHwsZd5czLqYChu50UvEtNPPdqq3bCgfs6vNW5ZCunYhq47gmN594Ye5WImdnZjiFZU7nxf7EQPXIT53iSm/wF5E3FCveSBvbzFQQzfcmAgtaxAygwbLzGpG0xYqa1FJoFQAV/Mp+Db3yvEESnEVqsAhKr6T2N1jtPU6h20lnHb7+weUKhIQ3ODjiRnU3rJ4IxncHp38VuTgZ40YO9obNlUwUczZjtY5vTF/qRYcynbyLVtqNwrKgmXQDvPKKZjoZNlzV5MtW0fAmJsKf/EQYxTc4MJIEWe3kzFDONLLbcG6G3+uwzNMdvKLDUc1XcFiheFMIxMLSLGlSMTUDfwbJKR6bB0acYFb4j0bSgm1Be6Rxb8ZtU5IxHVRKa4OXYWb8m3UiHeOCsS5IIvPDTeiFn+x2OAdLBHgkUy/FV2donIQjTOIaLuPwFoVY55kFJ95QcCya7GHqTW6IWtriXgylmSb7MqFZO2QBiSkampZXdDTsUBurzfRqVhuFoTIenAmZhP8Q9hBA4V0omx2VaQgt7OpQfI3UAraVojlDaDc/tDbKRtmSi2VyvXRA4azJjI/WJhBDOVnDC3BUgvGY/k0B0AXXhrj2wc70rKxfXWlY/2nq5vCv7i6ymGpDdVaSeAZiOoROBfQR3xGa1CIARGCf8HFjxWFhUgcN2qnPSa1IyyQKlCZfpvZqvv+/JMd8mQTFI+7oaKIVPZrOEADvHEx1nYn58Dq1NWZ29geGamJqDHt2ymatIXutXqYVxo+EyFiLsPw3LGcKi+brZIEDLf4/Gf4HFosRA8JQKLWGI3lluScdurU8yQ+lmLbBTXBPJTaVIOER2dPx3wA1bnd5QTyDWeNFPKqpgkbt1KdRwdRaI47UcnHK61TqJt0ZDbEALX1j/Zgwhvo/mRT9HxJ2PmGbIeVKAAAAAElFTkSuQmCC" alt="" width="24" height="24"/></span>Debrid&nbsp;Hub
       <small>link manifest → JDownloader2</small></div>
+    <div class="view-tabs">
+      <button class="view-tab on" id="tabLibrary" data-view="library">Library</button>
+      <button class="view-tab" id="tabDiscover" data-view="discover">Discover</button>
+    </div>
     <div class="dots" id="dots"></div>
     <div class="spacer"></div>
     <button class="iconbtn" id="expandAll" title="Expand / collapse all series">⊟ Groups</button>
     <button class="iconbtn" id="refresh" title="Re-fetch from providers">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
+    <button class="iconbtn" id="addonsBtn" title="Content-discovery extensions">🧩 Extensions</button>
     <button class="iconbtn" id="settings" title="Provider API keys">⚙ Keys</button>
     <button class="iconbtn" id="debugBtn" title="Show raw provider requests/responses (forces a refresh)">🐛 Debug</button>
     <button class="iconbtn" id="keybtn" title="Set access key" style="display:none">🔒</button>
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap" id="libraryView">
   <div class="toolbar">
     <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -263,6 +323,20 @@
     <div class="col-kind">kind</div><div class="r">size</div><div></div>
   </div>
   <div class="manifest"><div class="rows" id="rows"></div></div>
+</div>
+
+<div class="wrap" id="discoverView" hidden>
+  <div class="toolbar">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="discoverQ" placeholder="search movies & shows across your extensions…" autocomplete="off" spellcheck="false"/>
+    </div>
+    <select id="discoverType" title="Content type">
+      <option value="movie">movies</option><option value="series">series</option>
+    </select>
+  </div>
+  <div id="discoverBody"></div>
 </div>
 
 <div class="tray" id="tray">
@@ -308,6 +382,37 @@
     <div class="modal-actions">
       <button class="ghost" id="debugCancel">Close</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="addonsModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><b>Extensions</b>
+      <button class="iconbtn" id="addonsClose" title="Close">✕</button></div>
+    <p class="modal-note">Stremio-protocol addon manifest URLs power the <b>Discover</b> tab
+      (browse, search, cast/posters, and sources to add straight to your debrid account).
+      URLs often carry a personal config token — stored <b>encrypted</b> on the server,
+      same as provider keys, and never shown again once added.</p>
+    <div id="addonsList"></div>
+    <div class="cfg-row" style="margin-top:14px">
+      <label>Add an extension</label>
+      <div class="cfg-input">
+        <input type="text" id="addonUrlInput" autocomplete="off" spellcheck="false"
+          placeholder="https://…/manifest.json"/>
+        <button class="primary" id="addonAddBtn" style="height:36px;padding:0 14px">Add</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" id="addonsDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="detailModal" hidden>
+  <div class="modal-card detail-card">
+    <div id="detailBgWrap"></div>
+    <button class="iconbtn" id="detailClose" title="Close" style="position:absolute;top:12px;right:12px;z-index:2">✕</button>
+    <div class="detail-body" id="detailBody"></div>
   </div>
 </div>
 
@@ -870,6 +975,212 @@ $('#debugModal').onclick=e=>{ if(e.target===$('#debugModal')) closeDebug(); };
 $('#groupChk').onchange=render;
 let deb; $('#q').oninput=()=>{clearTimeout(deb);deb=setTimeout(render,120);};
 $('#sort').onchange=render; $('#order').onchange=render;
+
+/* ================= Discover ================= */
+let VIEW='library', DISCOVER_LOADED=false, DISCOVER_SECTIONS=[];
+const DISC_BATCH=12;
+let discShown=0;
+
+function setView(v){
+  VIEW=v;
+  $('#libraryView').hidden = v!=='library';
+  $('#discoverView').hidden = v!=='discover';
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('on', b.dataset.view===v));
+  if(v==='library'){ updateTray(); }
+  else{ $('#tray').classList.remove('show'); if(!DISCOVER_LOADED){ DISCOVER_LOADED=true; loadDiscoverSections(); } }
+}
+document.querySelectorAll('.view-tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+
+function discCardHtml(item, type){
+  return `<div class="disc-card" data-id="${esc(item.id)}" data-type="${esc(item.type||type)}">
+    <img class="disc-poster" src="${esc(item.poster||'')}" alt="" loading="lazy"
+      onerror="this.style.opacity='.15'"/>
+    <div class="disc-title">${esc(item.name||'')}</div>
+    <div class="disc-year">${esc(item.year||'')}</div>
+  </div>`;
+}
+function discSectionsHtml(sections, offset){
+  return sections.map((s,i)=>`
+    <div class="disc-section">
+      <h3>${esc(s.addon_name)} <small>${esc(s.name)}</small></h3>
+      <div class="disc-row" id="discRow${offset+i}"><div class="state" style="padding:16px 0">loading…</div></div>
+    </div>`).join('');
+}
+function discLoadRows(sections, offset){
+  sections.forEach(async (s,i)=>{
+    const idx=offset+i;
+    try{
+      const d=await api(`/api/discover/catalog?addon=${encodeURIComponent(s.addon_id)}&type=${encodeURIComponent(s.type)}&catalog=${encodeURIComponent(s.catalog_id)}`);
+      const row=document.getElementById('discRow'+idx); if(!row) return;
+      row.innerHTML = d.items.length ? d.items.map(it=>discCardHtml(it,s.type)).join('')
+        : `<div class="state" style="padding:16px 0">nothing here</div>`;
+    }catch(e){
+      const row=document.getElementById('discRow'+idx);
+      if(row) row.innerHTML=`<div class="state" style="padding:16px 0">failed to load</div>`;
+    }
+  });
+}
+async function loadDiscoverSections(){
+  $('#discoverBody').innerHTML=`<div class="state">loading extensions…</div>`;
+  try{
+    const d=await api('/api/discover/catalogs');
+    DISCOVER_SECTIONS=d.sections||[];
+    if(!DISCOVER_SECTIONS.length){
+      $('#discoverBody').innerHTML=`<div class="state"><b>No extensions configured.</b>Add one from 🧩 Extensions to browse & search content.</div>`;
+      return;
+    }
+    renderDiscoverSections();
+  }catch(e){ if(e.message!=='unauthorized')
+    $('#discoverBody').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
+}
+function renderDiscoverSections(){
+  const type=$('#discoverType').value;
+  const all=DISCOVER_SECTIONS.filter(s=>s.type===type);
+  if(!all.length){ $('#discoverBody').innerHTML=`<div class="state"><b>Nothing to browse.</b>None of your extensions expose a ${esc(type)} catalog.</div>`; return; }
+  discShown=Math.min(DISC_BATCH, all.length);
+  $('#discoverBody').innerHTML = discSectionsHtml(all.slice(0,discShown), 0) +
+    (all.length>discShown ? `<button class="ghost" id="discMore">Show more sections (${all.length-discShown} left)</button>` : '');
+  discLoadRows(all.slice(0,discShown), 0);
+  const moreBtn=$('#discMore');
+  if(moreBtn) moreBtn.onclick=()=>{
+    const next=all.slice(discShown, discShown+DISC_BATCH);
+    moreBtn.insertAdjacentHTML('beforebegin', discSectionsHtml(next, discShown));
+    discLoadRows(next, discShown);
+    discShown+=next.length;
+    if(discShown>=all.length) moreBtn.remove();
+    else moreBtn.textContent=`Show more sections (${all.length-discShown} left)`;
+  };
+}
+let discSearchDeb;
+$('#discoverQ').oninput=()=>{ clearTimeout(discSearchDeb); discSearchDeb=setTimeout(runDiscoverSearch,350); };
+$('#discoverType').onchange=()=> $('#discoverQ').value.trim() ? runDiscoverSearch() : renderDiscoverSections();
+async function runDiscoverSearch(){
+  const q=$('#discoverQ').value.trim();
+  if(!q){ renderDiscoverSections(); return; }
+  $('#discoverBody').innerHTML=`<div class="state">searching…</div>`;
+  try{
+    const type=$('#discoverType').value;
+    const d=await api(`/api/discover/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}`);
+    $('#discoverBody').innerHTML = d.items.length
+      ? `<div class="disc-section"><h3>Search results</h3><div class="disc-grid">${d.items.map(it=>discCardHtml(it,type)).join('')}</div></div>`
+      : `<div class="state"><b>Nothing found.</b></div>`;
+  }catch(e){ if(e.message!=='unauthorized')
+    $('#discoverBody').innerHTML=`<div class="state"><b>Search failed.</b>${esc(e.message)}</div>`; }
+}
+$('#discoverBody').addEventListener('click', e=>{
+  const card=e.target.closest('.disc-card');
+  if(card) openDetail(card.dataset.id, card.dataset.type);
+});
+
+/* ---- Detail modal ---- */
+async function openDetail(id, type){
+  $('#detailModal').hidden=false;
+  $('#detailBgWrap').innerHTML='';
+  $('#detailBody').innerHTML=`<div class="state">loading…</div>`;
+  try{
+    const [metaRes, streamRes] = await Promise.allSettled([
+      api(`/api/discover/meta?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`),
+      api(`/api/discover/streams?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`),
+    ]);
+    const meta = metaRes.status==='fulfilled' ? metaRes.value.meta : null;
+    const streams = streamRes.status==='fulfilled' ? (streamRes.value.streams||[]) : [];
+    renderDetail(meta, streams);
+  }catch(e){ $('#detailBody').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
+}
+function renderDetail(meta, streams){
+  const name=meta?.name||'Unknown';
+  const bg=meta?.background||'';
+  const poster=meta?.poster||'';
+  const desc=meta?.description||'';
+  const year=meta?.releaseInfo||meta?.year||'';
+  const rating=meta?.imdbRating ? '★ '+meta.imdbRating : '';
+  const runtime=meta?.runtime||'';
+  const genresRaw=meta?.genres||meta?.genre||[];
+  const genres=Array.isArray(genresRaw)?genresRaw.join(', '):(genresRaw||'');
+  const castRaw = meta?.app_extras?.cast || (Array.isArray(meta?.cast) ? meta.cast.map(n=>({name:n})) : []);
+  $('#detailBgWrap').innerHTML = bg ? `<img class="detail-bg" src="${esc(bg)}" alt=""/>` : '';
+  const castHtml = castRaw.length ? `<div class="cast-row">${castRaw.slice(0,10).map(c=>`
+    <div class="cast-card">${c.photo?`<img src="${esc(c.photo)}" alt=""/>`:'<div class="noimg"></div>'}
+    <div class="cn">${esc(c.name||'')}</div></div>`).join('')}</div>` : '';
+  const srcHtml = streams.length ? streams.map(s=>`
+    <div class="src-item">
+      <div class="src-info">
+        <div class="src-name"><span class="tag" style="background:var(--accent-dim);color:#d9fff8">${esc(s.addon_name)}</span>${esc(s.name||'')}</div>
+        <div class="src-desc">${esc(s.description||'')}</div>
+      </div>
+      <div class="src-size">${s.size?human(s.size):''}</div>
+      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">Add</button>
+    </div>`).join('') : '<div class="state" style="padding:16px 0">No sources found from your extensions.</div>';
+  $('#detailBody').innerHTML = `
+    <div class="detail-head">
+      ${poster?`<img class="detail-poster" src="${esc(poster)}" alt=""/>`:''}
+      <div class="detail-info">
+        <h2>${esc(name)}</h2>
+        <div class="detail-meta-line">${esc([year,runtime,rating,genres].filter(Boolean).join(' · '))}</div>
+      </div>
+    </div>
+    ${desc?`<p class="detail-desc">${esc(desc)}</p>`:''}
+    ${castHtml}
+    <div class="src-list"><h3>Sources (${streams.length})</h3>${srcHtml}</div>`;
+}
+$('#detailBody').addEventListener('click', async e=>{
+  const btn=e.target.closest('button[data-token]');
+  if(!btn) return;
+  const token=btn.dataset.token; btn.disabled=true; const orig=btn.textContent; btn.textContent='Adding…';
+  try{
+    const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+    toast(r.ok ? 'Added — refresh your Library to see it' : 'May have failed (status '+r.status+')', !r.ok);
+  }catch(e){ toast('Add failed: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+});
+function closeDetail(){ $('#detailModal').hidden=true; }
+$('#detailClose').onclick=closeDetail;
+$('#detailModal').onclick=e=>{ if(e.target===$('#detailModal')) closeDetail(); };
+
+/* ---- Extensions settings ---- */
+async function refreshAddonsList(){
+  try{
+    const d=await api('/api/addons');
+    $('#addonsList').innerHTML = d.addons.length ? d.addons.map(a=>`
+      <div class="addon-row" data-id="${esc(a.id)}">
+        <div class="addon-info">
+          <div class="addon-name">${esc(a.name)}</div>
+          <div class="addon-meta">${esc((a.resources||[]).join(', '))} · ${(a.catalogs||[]).length} catalog(s)</div>
+        </div>
+        <button class="ghost addon-rm" data-id="${esc(a.id)}">Remove</button>
+      </div>`).join('') : '<div class="state" style="padding:14px 0">No extensions added yet.</div>';
+  }catch(e){ if(e.message!=='unauthorized') toast('Load failed: '+e.message, true); }
+}
+async function openAddons(){ $('#addonsModal').hidden=false; await refreshAddonsList(); }
+function closeAddons(){ $('#addonsModal').hidden=true; }
+$('#addonsList').addEventListener('click', async e=>{
+  const btn=e.target.closest('.addon-rm');
+  if(!btn) return;
+  if(!confirm('Remove this extension?')) return;
+  try{
+    await api('/api/addons/'+btn.dataset.id,{method:'DELETE'});
+    await refreshAddonsList();
+    DISCOVER_LOADED=false;
+  }catch(e){ if(e.message!=='unauthorized') toast('Remove failed: '+e.message, true); }
+});
+$('#addonAddBtn').onclick=async()=>{
+  const input=$('#addonUrlInput'); const url=input.value.trim();
+  if(!url) return;
+  const btn=$('#addonAddBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Adding…';
+  try{
+    await api('/api/addons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+    input.value=''; toast('Extension added');
+    await refreshAddonsList();
+    DISCOVER_LOADED=false;
+  }catch(e){ if(e.message!=='unauthorized') toast('Add failed: '+e.message, true); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+};
+$('#addonsBtn').onclick=openAddons;
+$('#addonsClose').onclick=closeAddons; $('#addonsDone').onclick=closeAddons;
+$('#addonsModal').onclick=e=>{ if(e.target===$('#addonsModal')) closeAddons(); };
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeDetail(); closeAddons(); }
+});
 
 (async()=>{
   try{ await loadProviders(); await loadLinks(false); }

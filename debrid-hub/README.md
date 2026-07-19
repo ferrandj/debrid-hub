@@ -16,6 +16,7 @@ One place to see every link across your debrid accounts — **Real-Debrid, AllDe
 - Resolves the actual direct download URL on demand (links are metered/locked on some services, so this happens when you copy, not when you browse).
 - **JD2 tray**: tick several links, hit *Copy for JD2*, and every direct URL lands on your clipboard newline-separated. JDownloader2 monitors the clipboard by default, so it auto-catches them into the LinkGrabber — or just paste.
 - **Debug mode**: `?debug=true` on `/api/links`, `debrid-hub list --debug`, or the **🐛 Debug** button in the UI show the exact outbound request/response for every provider call that last listing made (secrets redacted) — for when a provider changes their API out from under you.
+- **Discover**: a separate tab that browses/searches content through **Stremio-protocol addons** you configure — metadata (posters, cast, descriptions) and, for debrid-integrated addons, sources you can push straight into a debrid account with one click. No Stremio app needed. See [Discover](#discover-content-via-stremio-addons) below.
 
 ## Quick start (Docker, e.g. on your NAS)
 
@@ -139,6 +140,9 @@ Base URL `http://host:8080`. If `DEBRID_HUB_API_KEY` is set, send `Authorization
 | GET | `/api/links` | aggregated list; query: `search, provider, kind, sort, order, refresh, debug` |
 | POST | `/api/resolve` | body `{"ids":["…"]}` (or `{"id":"…"}`) → direct URLs |
 | POST | `/api/delete` | body `{"ids":["…"]}` (or `{"id":"…"}`) → delete from provider; per-id `{"ok":true}`/`{"error":…}` |
+| GET / POST / DELETE | `/api/addons` | list / add / remove content-discovery addons (encrypted, URL never returned) |
+| GET | `/api/discover/catalogs` \| `/catalog` \| `/search` \| `/meta` \| `/streams` | browse, search, and fetch metadata/sources across configured addons |
+| POST | `/api/discover/add` | resolve a chosen stream — for a debrid-integrated addon, adds it to the debrid account |
 | GET | `/health` | liveness |
 
 ```bash
@@ -163,6 +167,38 @@ Interactive docs at `/docs` (Swagger UI) and the machine-readable schema at
 
 Behind Cloudflare Tunnel or Tailscale, no extra auth is strictly needed. If it's reachable from the internet, set `DEBRID_HUB_API_KEY`; the UI will prompt for it once and remember it in your browser.
 
+## Discover: content via Stremio addons
+
+Stremio addons are just HTTP servers implementing an open, documented protocol
+(catalog/search/metadata/streams as plain JSON) — Debrid Hub talks to them
+directly, generically, with no Stremio app and no addon-specific code. Add any
+addon's `manifest.json` URL and it works: metadata addons populate the browse
+sections and search; addons wired to a debrid account give you sources you can
+push to that account with one click.
+
+- **Add an extension**: **🧩 Extensions** → paste a `manifest.json` URL → Add.
+  The URL is validated (fetched + checked it's really an addon) before being
+  stored, **encrypted**, the same way as provider keys — it's never shown again.
+- **Browse**: the **Discover** tab renders one row per (addon, catalog) —
+  e.g. a per-streaming-service catalog addon gives you a Netflix row, a Hulu
+  row, and so on, automatically, with no per-service code here.
+- **Search**: searches every configured addon+catalog that supports it, in
+  parallel, deduped.
+- **Sources → your debrid account**: click a result to see cast/description/
+  poster plus every source your stream-capable addons found; **Add** on one
+  resolves it — for a debrid-integrated addon, that's the same action as
+  hitting Play in Stremio, and it lands the release in your debrid account.
+  This can take a little while for a magnet/torrent-backed source (it's
+  resolving live, not instant); a hoster-link-backed one is instant-or-fail.
+
+**Nothing here is Stremio-specific beyond the protocol itself** — no addon URL,
+name, or behavior is hardcoded, so any addon you add (today's four, or any
+future one) works without touching the app. See
+[`docs/PRODUCT.md`](docs/PRODUCT.md#discover-browsesearch-content-via-stremio-protocol-addons)
+for exactly how requests are made, how urls stay server-side (opaque tokens,
+never sent to the browser), and the host-validation that stops a tampered
+token from making the server fetch an arbitrary URL.
+
 ## Adding another debrid service
 
 Subclass `Provider` in `src/debrid_hub/providers/`, implement `list_links()` and `resolve()`, and register it in `Aggregator._build()`. The UI and CLI pick it up automatically. Provider-specific data for resolving a link travels inside each link's opaque id, so the server stays stateless. To support deletion, set `capabilities = ("delete",)` and implement `delete(hint)`; carry whatever identifier the delete endpoint needs inside the link's `resolve_hint["del"]`.
@@ -174,3 +210,4 @@ Subclass `Provider` in `src/debrid_hub/providers/`, implement `list_links()` and
 - AllDebrid only exposes file links for magnets whose status is **Ready**.
 - Series grouping, quality/language badges, and cross-provider dedup are inferred client-side from filenames/size; they're display conveniences, not metadata from the providers. Files that don't match stay as-is.
 - If a provider's listing comes back empty or wrong after they change their API, check `debrid-hub list --debug` (or `?debug=true` / the UI's Debug button) before assuming it's a credentials problem — it shows the exact request and response.
+- Discover is independent of the provider/link machinery above — it never touches `secrets.enc` or the debrid provider clients directly. Adding a source there only affects the debrid account the addon itself is configured for; Debrid Hub doesn't choose or override that.
