@@ -18,6 +18,13 @@ _LIST = (
     ("webdl", "/webdl/mylist"),
     ("usenet", "/usenet/mylist"),
 )
+# Control endpoint + the id field each expects, per kind. Deleting removes the
+# whole item (every file inside it), which is all the TorBox API supports.
+_CONTROL = {
+    "torrent": ("/torrents/controltorrent", "torrent_id"),
+    "webdl": ("/webdl/controlwebdownload", "webdl_id"),
+    "usenet": ("/usenet/controlusenet", "usenet_id"),
+}
 
 
 class TorBox(Provider):
@@ -28,6 +35,7 @@ class TorBox(Provider):
     """
 
     name = "torbox"
+    capabilities = ("delete",)
 
     def __init__(self, client: httpx.AsyncClient, apikey: str) -> None:
         super().__init__(client)
@@ -35,19 +43,26 @@ class TorBox(Provider):
         self._headers = {"Authorization": f"Bearer {apikey}"}
 
     async def _get(self, path: str, **params):
-        r = await self._client.get(f"{BASE}{path}", headers=self._headers, params=params)
+        url = f"{BASE}{path}"
+        r = await self._client.get(url, headers=self._headers, params=params)
         r.raise_for_status()
         j = r.json()
+        self._record("GET", url, params, r.status_code, j)
         if not j.get("success", True):
             raise RuntimeError(j.get("detail") or j.get("error") or "torbox error")
         return j.get("data")
 
-    async def list_links(self) -> list[DebridLink]:
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
+        self._reset_debug()
         out: list[DebridLink] = []
+        # TorBox caches mylist server-side; bypass it on an explicit refresh so a
+        # just-deleted torrent doesn't keep coming back.
+        bypass = "true" if force else "false"
         for kind, path in _LIST:
             try:
-                data = await self._get(path, bypass_cache="false")
-            except Exception:
+                data = await self._get(path, bypass_cache=bypass)
+            except Exception as exc:  # noqa: BLE001 — surfaced via `warnings`, not swallowed
+                self.warnings.append(f"{kind}: {type(exc).__name__}: {exc}")
                 continue
             for item in (data or []):
                 item_id = item.get("id")
@@ -75,6 +90,21 @@ class TorBox(Provider):
         if not j.get("success", True):
             raise RuntimeError(j.get("detail") or "torbox: could not request link")
         return j.get("data")
+
+    async def delete(self, hint: dict) -> None:
+        control = _CONTROL.get(hint.get("k"))
+        if not control or hint.get("i") is None:
+            raise ValueError("torbox: this item cannot be deleted")
+        path, id_field = control
+        r = await self._client.post(
+            f"{BASE}{path}",
+            headers=self._headers,
+            json={id_field: hint["i"], "operation": "delete"},
+        )
+        r.raise_for_status()
+        j = r.json()
+        if not j.get("success", True):
+            raise RuntimeError(j.get("detail") or "torbox: delete failed")
 
     async def health(self) -> bool:
         try:

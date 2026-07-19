@@ -4,12 +4,36 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 from .aggregator import Aggregator, filter_sort
 from .config import Settings, get_settings
 
 _WEB = Path(__file__).parent / "web" / "index.html"
 _CONFIG_FIELDS = ("realdebrid", "alldebrid", "torbox")
+
+
+class ResolveRequest(BaseModel):
+    """Link ids to turn into direct download URLs."""
+
+    ids: list[str] | None = Field(default=None, description="Opaque link ids to resolve.")
+    id: str | None = Field(default=None, description="A single link id (shorthand for ids=[id]).")
+
+
+class DeleteRequest(BaseModel):
+    """Link ids to delete from their provider accounts."""
+
+    ids: list[str] | None = Field(default=None, description="Opaque link ids to delete.")
+    id: str | None = Field(default=None, description="A single link id (shorthand for ids=[id]).")
+
+
+class ConfigRequest(BaseModel):
+    """Provider API keys to store, encrypted. Omit a field to leave it unchanged;
+    send an empty string to clear it."""
+
+    realdebrid: str | None = None
+    alldebrid: str | None = None
+    torbox: str | None = None
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -24,10 +48,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/providers", dependencies=[Depends(auth)])
     async def providers():
         health = await agg.health()
+        caps = agg.provider_caps()
         return {
             "auth_required": bool(settings.api_key),
             "providers": [
-                {"name": n, "healthy": health.get(n, False)} for n in agg.provider_names
+                {
+                    "name": n,
+                    "healthy": health.get(n, False),
+                    "capabilities": caps.get(n, []),
+                }
+                for n in agg.provider_names
             ],
         }
 
@@ -41,10 +71,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.put("/api/config", dependencies=[Depends(auth)])
-    async def set_config(body: dict):
+    async def set_config(body: ConfigRequest):
         """Store provider keys (encrypted). Body: any of realdebrid/alldebrid/torbox.
         An empty value clears that key. Keys not present in the body are unchanged."""
-        updates = {k: body[k] for k in _CONFIG_FIELDS if k in body}
+        sent = body.model_dump(exclude_unset=True)
+        updates = {k: sent[k] for k in _CONFIG_FIELDS if k in sent}
         if not updates:
             raise HTTPException(
                 status_code=400,
@@ -74,21 +105,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         sort: str = "name",
         order: str = "asc",
         refresh: bool = False,
+        debug: bool = False,
     ):
-        all_links = await agg.list_links(force=refresh)
+        """`debug=true` forces a live refresh and includes, per provider, every
+        outbound HTTP call made while listing (method, url, redacted params,
+        status, response body) -- for diagnosing a provider API change."""
+        all_links = await agg.list_links(force=refresh, debug=debug)
         items = filter_sort(all_links, search, provider, kind, sort, order)
-        return {
+        resp = {
             "count": len(items),
             "total": len(all_links),
             "errors": agg.errors,
             "links": [l.to_dict() for l in items],
         }
+        if debug:
+            resp["debug"] = agg.debug_logs
+        return resp
 
     @app.post("/api/resolve", dependencies=[Depends(auth)])
-    async def resolve(body: dict):
-        ids = body.get("ids")
-        if ids is None and body.get("id"):
-            ids = [body["id"]]
+    async def resolve(body: ResolveRequest):
+        ids = body.ids or ([body.id] if body.id else None)
         if not ids:
             raise HTTPException(status_code=400, detail="Provide 'id' or 'ids'.")
         out: dict[str, dict] = {}
@@ -98,6 +134,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except Exception as exc:  # noqa: BLE001
                 out[link_id] = {"error": f"{type(exc).__name__}: {exc}"}
         return {"resolved": out}
+
+    @app.post("/api/delete", dependencies=[Depends(auth)])
+    async def delete_links(body: DeleteRequest):
+        """Delete one or more links from their provider accounts. Per-id result is
+        {"ok": true} or {"error": "..."}. Note some providers can only delete a
+        whole torrent/magnet, which removes every file inside it."""
+        ids = body.ids or ([body.id] if body.id else None)
+        if not ids:
+            raise HTTPException(status_code=400, detail="Provide 'id' or 'ids'.")
+        out: dict[str, dict] = {}
+        for link_id in ids:
+            try:
+                await agg.delete(link_id)
+                out[link_id] = {"ok": True}
+            except Exception as exc:  # noqa: BLE001
+                out[link_id] = {"error": f"{type(exc).__name__}: {exc}"}
+        return {"deleted": out}
 
     @app.get("/health")
     async def health():

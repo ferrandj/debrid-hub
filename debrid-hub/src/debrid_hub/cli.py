@@ -62,13 +62,17 @@ def list_cmd(
     resolve: bool = typer.Option(False, "--resolve", help="Resolve direct URLs (slower, may be metered)."),
     urls_only: bool = typer.Option(False, "--urls", help="Print only direct URLs, one per line (pipe into JD2)."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON."),
+    debug: bool = typer.Option(
+        False, "--debug",
+        help="Force a live refresh and print every outbound provider HTTP call (secrets redacted).",
+    ),
 ):
     """List every link across your debrid accounts."""
 
     async def run():
         a = _agg()
         try:
-            links = await a.list_links()
+            links = await a.list_links(force=debug, debug=debug)
             items = filter_sort(links, search, provider, kind, sort, order)
             resolved: dict[str, str | None] = {}
             if resolve or urls_only:
@@ -79,11 +83,11 @@ def list_cmd(
                         resolved[l.id] = None
                         if not urls_only and not json_out:
                             console.print(f"[red]resolve failed[/] {l.name}: {exc}", highlight=False)
-            return items, resolved, a.errors
+            return items, resolved, a.errors, dict(a.debug_logs)
         finally:
             await a.aclose()
 
-    items, resolved, errors = asyncio.run(run())
+    items, resolved, errors, debug_logs = asyncio.run(run())
 
     if urls_only:
         for l in items:
@@ -114,6 +118,21 @@ def list_cmd(
     for name, msg in errors.items():
         console.print(f"[red]! {name}: {msg}[/]")
 
+    if debug:
+        console.print("\n[bold]— debug: provider requests/responses —[/]")
+        if not any(debug_logs.values()):
+            console.print("[dim](no outbound calls recorded)[/]")
+        for pname, log in debug_logs.items():
+            console.print(f"[cyan]{pname}[/] — {len(log)} call(s)")
+            for entry in log:
+                console.print(
+                    f"  {entry['method']} {entry['url']} {entry['params']} -> {entry['status']}",
+                    highlight=False,
+                )
+                body = entry["body"]
+                body_s = body if isinstance(body, str) else _json.dumps(body)
+                console.print(f"    {body_s[:500]}", style="dim", highlight=False)
+
 
 @app.command()
 def resolve(link_id: str = typer.Argument(..., help="Opaque link id from `list --json`.")):
@@ -127,6 +146,42 @@ def resolve(link_id: str = typer.Argument(..., help="Opaque link id from `list -
             await a.aclose()
 
     print(asyncio.run(run()))
+
+
+@app.command("rm")
+def rm_cmd(
+    link_ids: list[str] = typer.Argument(..., help="One or more link ids from `list --json`."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
+):
+    """Delete link(s) from the provider account. Irreversible; some providers
+    delete the whole torrent/magnet (every file inside it)."""
+    if not yes:
+        console.print(f"[yellow]About to delete {len(link_ids)} link(s) from your provider account(s).[/]")
+        if not typer.confirm("Continue?"):
+            raise typer.Exit(1)
+
+    async def run():
+        a = _agg()
+        try:
+            results: dict[str, str | None] = {}
+            for lid in link_ids:
+                try:
+                    await a.delete(lid)
+                    results[lid] = None
+                except Exception as exc:  # noqa: BLE001
+                    results[lid] = f"{type(exc).__name__}: {exc}"
+            return results
+        finally:
+            await a.aclose()
+
+    results = asyncio.run(run())
+    ok = sum(1 for v in results.values() if v is None)
+    for lid, err in results.items():
+        if err:
+            console.print(f"[red]✗[/] {lid[:16]}… {err}", highlight=False)
+    console.print(f"[green]deleted {ok}/{len(link_ids)}[/]")
+    if ok != len(link_ids):
+        raise typer.Exit(1)
 
 
 config_app = typer.Typer(
