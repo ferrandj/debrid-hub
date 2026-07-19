@@ -1,0 +1,11 @@
+{
+  "name": "debrid-hub-web-tests",
+  "private": true,
+  "description": "jsdom tests for src/debrid_hub/web/index.html — the app has no build step, this only tests it.",
+  "scripts": {
+    "test": "node tests/web/run.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.0"
+  }
+}

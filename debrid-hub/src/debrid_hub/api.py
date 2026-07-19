@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -55,9 +56,20 @@ class TriggerRequest(BaseModel):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
-    app = FastAPI(title="Debrid Hub", version="1.0.0")
     agg = Aggregator(settings)
     discover = DiscoverHub(settings)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        await agg.aclose()
+        await discover.aclose()
+
+    app = FastAPI(title="Debrid Hub", version="1.0.0", lifespan=lifespan)
+    # Exposed for tests (e.g. injecting a mock transport into discover._client)
+    # and introspection -- standard FastAPI pattern, not used by any route.
+    app.state.agg = agg
+    app.state.discover = discover
 
     async def auth(authorization: str | None = Header(default=None)) -> None:
         if settings.api_key and authorization != f"Bearer {settings.api_key}":
@@ -251,13 +263,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Resolve a chosen stream -- for a debrid-integrated addon, this is
         the step that actually adds the release to the user's debrid account."""
         try:
-            status = await discover.trigger(body.token)
+            status, detail = await discover.trigger(body.token)
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"Addon request failed: {exc}")
         ok = 200 <= status < 400
-        return {"ok": ok, "status": status}
+        return {"ok": ok, "status": status, "detail": detail}
 
     @app.get("/health")
     async def health():
@@ -266,11 +278,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     async def index():
         return _WEB.read_text(encoding="utf-8")
-
-    @app.on_event("shutdown")
-    async def _shutdown():
-        await agg.aclose()
-        await discover.aclose()
 
     return app
 

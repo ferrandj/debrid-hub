@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from urllib.parse import quote
 
 import httpx
@@ -106,11 +107,27 @@ async def fetch_streams(client: httpx.AsyncClient, base: str, type_: str, item_i
     return r.json().get("streams", []) or []
 
 
-async def trigger_stream(client: httpx.AsyncClient, stream_url: str, *, timeout: float = 60.0) -> int:
+async def trigger_stream(client: httpx.AsyncClient, stream_url: str, *, timeout: float = 60.0) -> tuple[int, str | None]:
     """Fetch a stream's own `url` -- for a debrid-integrated addon this is the
     step that actually resolves/adds the release to the user's account (the
-    same thing that happens when Stremio's client hits "Play"). We only need
-    the status code; we deliberately don't download the body (some of these
-    are 50+ GB video streams)."""
+    same thing that happens when Stremio's client hits "Play"). Returns
+    (status_code, detail). A success response's body is never read (some of
+    these are 50+ GB video streams) -- only an error response's body is,
+    since addons return a small JSON/text reason there (e.g. AllDebrid/hoster
+    resolution failing upstream), and that's worth surfacing instead of just
+    a bare status code."""
     async with client.stream("GET", stream_url, follow_redirects=True, timeout=timeout) as r:
-        return r.status_code
+        status = r.status_code
+        detail = None
+        if status >= 400:
+            try:
+                body = (await r.aread())[:2000]
+                text = body.decode("utf-8", "replace").strip()
+                try:
+                    parsed = json.loads(text)
+                    detail = parsed.get("detail") or parsed.get("error") or parsed.get("message") or text
+                except ValueError:
+                    detail = text or None
+            except Exception:  # noqa: BLE001 — best-effort; a status code alone still beats nothing
+                detail = None
+        return status, (detail[:500] if detail else None)

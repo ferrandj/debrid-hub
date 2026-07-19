@@ -21,6 +21,7 @@ secret.key
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+node_modules/
 
 # Build artifacts (e.g. docker save output)
 *.tar

@@ -39,6 +39,11 @@
     padding:6px 12px;border-radius:7px;cursor:pointer;font-family:var(--ui)}
   .view-tab.on{background:var(--panel);color:var(--text)}
   .view-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .lang-switch{display:flex;gap:2px;background:var(--panel2);border-radius:9px;padding:3px}
+  .lang-btn{background:transparent;border:none;border-radius:7px;cursor:pointer;font-size:15px;
+    line-height:1;padding:5px 7px;opacity:.5;filter:grayscale(.6)}
+  .lang-btn.on{background:var(--panel);opacity:1;filter:none}
+  .lang-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .dots{display:flex;gap:12px;margin-left:6px}
   .dot{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-family:var(--mono)}
   .dot i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
@@ -261,10 +266,44 @@
   .cfg-rm[disabled]{opacity:.35;cursor:default}
 
   @media (max-width:760px){
-    :root{--grid:30px minmax(0,1fr) 74px 84px}
+    :root{--grid:26px minmax(0,1fr) 42px 56px 68px}
     .thead .col-host,.thead .col-kind,.row .col-host,.row .col-kind{display:none}
     .dots{display:none}
-    .row.ep{padding-left:40px}
+    .row.ep{padding-left:34px}
+    .row,.thead{gap:8px;padding:10px 10px}
+
+    body{padding-bottom:150px}
+    .wrap{padding:0 12px}
+    .top{flex-wrap:wrap;height:auto;padding:10px 0;row-gap:8px}
+    .brand{font-size:14px}
+    .brand small{display:none}
+    .view-tab{padding:8px 12px}
+    .lang-btn{padding:7px 9px}
+    .iconbtn{height:38px;padding:0 10px}
+    .iconbtn span{display:none}
+
+    .toolbar{padding:12px 0 10px}
+    .search{min-width:100%;order:-1}
+    select{height:38px}
+
+    .disc-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+    .disc-card{width:104px}
+
+    .modal{padding:10px}
+    .cfg-input{flex-wrap:wrap}
+    .cfg-input input{flex:1 1 160px}
+
+    .detail-head{margin-top:-48px;flex-wrap:wrap}
+    .detail-poster{width:78px}
+    .detail-info{padding-top:48px}
+
+    .tray .wrap{flex-wrap:wrap;height:auto;padding:10px 0;row-gap:8px}
+    .tray .info{flex:1 1 100%}
+    .toast{bottom:170px;max-width:92vw;text-align:center}
+  }
+  @media (max-width:420px){
+    :root{--grid:24px minmax(0,1fr) 56px 68px}
+    .thead>div:nth-child(3),.row>div:nth-child(3){display:none}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -273,21 +312,25 @@
 <header>
   <div class="wrap top">
     <div class="brand"><span class="glyph"><img src="data:image/png;base64,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" alt="" width="24" height="24"/></span>Debrid&nbsp;Hub
-      <small>link manifest → JDownloader2</small></div>
+      <small data-i18n="tagline">link manifest → JDownloader2</small></div>
     <div class="view-tabs">
-      <button class="view-tab on" id="tabLibrary" data-view="library">Library</button>
-      <button class="view-tab" id="tabDiscover" data-view="discover">Discover</button>
+      <button class="view-tab on" id="tabLibrary" data-view="library" data-i18n="tab_library">Library</button>
+      <button class="view-tab" id="tabDiscover" data-view="discover" data-i18n="tab_discover">Discover</button>
     </div>
     <div class="dots" id="dots"></div>
     <div class="spacer"></div>
-    <button class="iconbtn" id="expandAll" title="Expand / collapse all series">⊟ Groups</button>
-    <button class="iconbtn" id="refresh" title="Re-fetch from providers">
+    <div class="lang-switch" id="langSwitch" data-i18n-title="title_lang" title="Switch language">
+      <button class="lang-btn" data-lang="en" aria-label="English">🇬🇧</button>
+      <button class="lang-btn" data-lang="fr" aria-label="Français">🇫🇷</button>
+    </div>
+    <button class="iconbtn" id="expandAll" data-i18n-title="title_expand_all" title="Expand / collapse all series">⊟ <span data-i18n="btn_groups">Groups</span></button>
+    <button class="iconbtn" id="refresh" data-i18n-title="title_refresh" title="Re-fetch from providers">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>Refresh</button>
-    <button class="iconbtn" id="addonsBtn" title="Content-discovery extensions">🧩 Extensions</button>
-    <button class="iconbtn" id="settings" title="Provider API keys">⚙ Keys</button>
-    <button class="iconbtn" id="debugBtn" title="Show raw provider requests/responses (forces a refresh)">🐛 Debug</button>
-    <button class="iconbtn" id="keybtn" title="Set access key" style="display:none">🔒</button>
+        <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg><span data-i18n="btn_refresh">Refresh</span></button>
+    <button class="iconbtn" id="addonsBtn" data-i18n-title="title_extensions" title="Content-discovery extensions">🧩 <span data-i18n="btn_extensions">Extensions</span></button>
+    <button class="iconbtn" id="settings" data-i18n-title="title_keys" title="Provider API keys">⚙ <span data-i18n="btn_keys">Keys</span></button>
+    <button class="iconbtn" id="debugBtn" data-i18n-title="title_debug" title="Show raw provider requests/responses (forces a refresh)">🐛 <span data-i18n="btn_debug">Debug</span></button>
+    <button class="iconbtn" id="keybtn" data-i18n-title="title_access_key" title="Set access key" style="display:none">🔒</button>
   </div>
 </header>
 
@@ -296,21 +339,21 @@
     <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="q" placeholder="search filename or host…" autocomplete="off" spellcheck="false"/>
+      <input id="q" data-i18n-placeholder="search_placeholder" placeholder="search filename or host…" autocomplete="off" spellcheck="false"/>
     </div>
     <div class="chips" id="provChips"></div>
     <div class="chips" id="kindChips"></div>
-    <label class="chip" id="groupToggle" title="Group episodes into series / seasons"
+    <label class="chip" id="groupToggle" data-i18n-title="title_group_toggle" title="Group episodes into series / seasons"
       style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-      <input type="checkbox" id="groupChk" checked style="width:14px;height:14px"/> group series
+      <input type="checkbox" id="groupChk" checked style="width:14px;height:14px"/> <span data-i18n="group_series">group series</span>
     </label>
-    <select id="sort" title="Sort by">
-      <option value="name">name</option><option value="size">size</option>
-      <option value="added">added</option><option value="host">host</option>
-      <option value="provider">provider</option><option value="kind">kind</option>
+    <select id="sort" data-i18n-title="title_sort" title="Sort by">
+      <option value="name" data-i18n="sort_name">name</option><option value="size" data-i18n="sort_size">size</option>
+      <option value="added" data-i18n="sort_added">added</option><option value="host" data-i18n="sort_host">host</option>
+      <option value="provider" data-i18n="sort_provider">provider</option><option value="kind" data-i18n="sort_kind">kind</option>
     </select>
-    <select id="order" title="Direction">
-      <option value="asc">▲ asc</option><option value="desc">▼ desc</option>
+    <select id="order" data-i18n-title="title_order" title="Direction">
+      <option value="asc" data-i18n="order_asc">▲ asc</option><option value="desc" data-i18n="order_desc">▼ desc</option>
     </select>
   </div>
 
@@ -318,9 +361,9 @@
   <div id="errors"></div>
 
   <div class="thead" id="thead">
-    <div><input type="checkbox" id="selAll" title="Select all shown"/></div>
-    <div>name</div><div>provider</div><div class="col-host">host</div>
-    <div class="col-kind">kind</div><div class="r">size</div><div></div>
+    <div><input type="checkbox" id="selAll" data-i18n-title="title_select_all" title="Select all shown"/></div>
+    <div data-i18n="col_name">name</div><div data-i18n="col_provider">provider</div><div class="col-host" data-i18n="col_host">host</div>
+    <div class="col-kind" data-i18n="col_kind">kind</div><div class="r" data-i18n="col_size">size</div><div></div>
   </div>
   <div class="manifest"><div class="rows" id="rows"></div></div>
 </div>
@@ -330,10 +373,10 @@
     <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="discoverQ" placeholder="search movies & shows across your extensions…" autocomplete="off" spellcheck="false"/>
+      <input id="discoverQ" data-i18n-placeholder="discover_search_placeholder" placeholder="search movies & shows across your extensions…" autocomplete="off" spellcheck="false"/>
     </div>
-    <select id="discoverType" title="Content type">
-      <option value="movie">movies</option><option value="series">series</option>
+    <select id="discoverType" data-i18n-title="title_content_type" title="Content type">
+      <option value="movie" data-i18n="type_movies">movies</option><option value="series" data-i18n="type_series">series</option>
     </select>
   </div>
   <div id="discoverBody"></div>
@@ -341,22 +384,22 @@
 
 <div class="tray" id="tray">
   <div class="wrap">
-    <div class="info"><b id="selCount">0</b> selected <span id="selSize"></span></div>
+    <div class="info"><b id="selCount">0</b> <span data-i18n="selected">selected</span> <span id="selSize"></span></div>
     <div class="spacer"></div>
-    <button class="ghost" id="clearSel">Clear</button>
-    <button class="ghost danger" id="delSel">Delete</button>
+    <button class="ghost" id="clearSel" data-i18n="btn_clear">Clear</button>
+    <button class="ghost danger" id="delSel" data-i18n="btn_delete">Delete</button>
     <button class="primary" id="copyJd">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-      Copy for JD2</button>
+      <span data-i18n="btn_copy_jd2">Copy for JD2</span></button>
   </div>
 </div>
 
 <div class="modal" id="cfgModal" hidden>
   <div class="modal-card">
-    <div class="modal-head"><b>Provider API keys</b>
-      <button class="iconbtn" id="cfgClose" title="Close">✕</button></div>
-    <p class="modal-note">Stored <b>encrypted</b> on the server. Leave a field blank to
+    <div class="modal-head"><b data-i18n="keys_title">Provider API keys</b>
+      <button class="iconbtn" id="cfgClose" data-i18n-title="title_close" title="Close">✕</button></div>
+    <p class="modal-note" data-i18n="keys_note">Stored <b>encrypted</b> on the server. Leave a field blank to
       keep the current key; use Remove to clear a stored one. A key set here overrides
       the matching environment variable. If a key was added to the encrypted store another
       way (e.g. <code>debrid-hub config set</code> via <code>docker compose exec</code>, or a
@@ -364,46 +407,46 @@
       without restarting.</p>
     <div id="cfgFields"></div>
     <div class="modal-actions">
-      <button class="ghost" id="cfgReload" title="Re-read the encrypted store from disk">⟳ Load</button>
+      <button class="ghost" id="cfgReload" data-i18n-title="title_load" title="Re-read the encrypted store from disk" data-i18n="btn_load">⟳ Load</button>
       <div class="spacer"></div>
-      <button class="ghost" id="cfgCancel">Cancel</button>
-      <button class="primary" id="cfgSave">Save keys</button>
+      <button class="ghost" id="cfgCancel" data-i18n="btn_cancel">Cancel</button>
+      <button class="primary" id="cfgSave" data-i18n="btn_save_keys">Save keys</button>
     </div>
   </div>
 </div>
 
 <div class="modal" id="debugModal" hidden>
   <div class="modal-card debug-card">
-    <div class="modal-head"><b>Provider requests / responses</b>
-      <button class="iconbtn" id="debugClose" title="Close">✕</button></div>
-    <p class="modal-note">Raw outbound calls from the last refresh. Secret-looking
+    <div class="modal-head"><b data-i18n="debug_title">Provider requests / responses</b>
+      <button class="iconbtn" id="debugClose" data-i18n-title="title_close" title="Close">✕</button></div>
+    <p class="modal-note" data-i18n="debug_note">Raw outbound calls from the last refresh. Secret-looking
       params (API keys, tokens) are redacted before this ever reaches the browser.</p>
     <div id="debugBody"></div>
     <div class="modal-actions">
-      <button class="ghost" id="debugCancel">Close</button>
+      <button class="ghost" id="debugCancel" data-i18n="btn_close">Close</button>
     </div>
   </div>
 </div>
 
 <div class="modal" id="addonsModal" hidden>
   <div class="modal-card">
-    <div class="modal-head"><b>Extensions</b>
-      <button class="iconbtn" id="addonsClose" title="Close">✕</button></div>
-    <p class="modal-note">Stremio-protocol addon manifest URLs power the <b>Discover</b> tab
+    <div class="modal-head"><b data-i18n="ext_title">Extensions</b>
+      <button class="iconbtn" id="addonsClose" data-i18n-title="title_close" title="Close">✕</button></div>
+    <p class="modal-note" data-i18n="ext_note">Stremio-protocol addon manifest URLs power the <b>Discover</b> tab
       (browse, search, cast/posters, and sources to add straight to your debrid account).
       URLs often carry a personal config token — stored <b>encrypted</b> on the server,
       same as provider keys, and never shown again once added.</p>
     <div id="addonsList"></div>
     <div class="cfg-row" style="margin-top:14px">
-      <label>Add an extension</label>
+      <label data-i18n="ext_add_label">Add an extension</label>
       <div class="cfg-input">
         <input type="text" id="addonUrlInput" autocomplete="off" spellcheck="false"
-          placeholder="https://…/manifest.json"/>
-        <button class="primary" id="addonAddBtn" style="height:36px;padding:0 14px">Add</button>
+          data-i18n-placeholder="ext_url_placeholder" placeholder="https://…/manifest.json"/>
+        <button class="primary" id="addonAddBtn" style="height:36px;padding:0 14px" data-i18n="btn_add">Add</button>
       </div>
     </div>
     <div class="modal-actions">
-      <button class="ghost" id="addonsDone">Done</button>
+      <button class="ghost" id="addonsDone" data-i18n="btn_done">Done</button>
     </div>
   </div>
 </div>
@@ -427,6 +470,172 @@ let KEYIDS = {};               // group key -> [link ids] (rebuilt each render)
 const SEP = '§';
 const KEY = () => localStorage.getItem('debridhub_key') || '';
 
+/* ================= i18n ================= */
+const I18N = {
+  en: {
+    tagline: 'link manifest → JDownloader2',
+    tab_library: 'Library', tab_discover: 'Discover',
+    btn_groups: 'Groups', btn_refresh: 'Refresh', btn_extensions: 'Extensions',
+    btn_keys: 'Keys', btn_debug: 'Debug',
+    title_expand_all: 'Expand / collapse all series', title_refresh: 'Re-fetch from providers',
+    title_extensions: 'Content-discovery extensions', title_keys: 'Provider API keys',
+    title_debug: 'Show raw provider requests/responses (forces a refresh)', title_access_key: 'Set access key',
+    title_lang: 'Switch language',
+    search_placeholder: 'search filename or host…',
+    group_series: 'group series', title_group_toggle: 'Group episodes into series / seasons',
+    sort_name: 'name', sort_size: 'size', sort_added: 'added', sort_host: 'host', sort_provider: 'provider', sort_kind: 'kind',
+    title_sort: 'Sort by', order_asc: '▲ asc', order_desc: '▼ desc', title_order: 'Direction',
+    title_select_all: 'Select all shown',
+    col_name: 'name', col_provider: 'provider', col_host: 'host', col_kind: 'kind', col_size: 'size',
+    discover_search_placeholder: 'search movies & shows across your extensions…',
+    title_content_type: 'Content type', type_movies: 'movies', type_series: 'series',
+    selected: 'selected', btn_clear: 'Clear', btn_delete: 'Delete', btn_copy_jd2: 'Copy for JD2', copy_jd2_resolving: 'Resolving…',
+    keys_title: 'Provider API keys', title_close: 'Close',
+    keys_note: 'Stored <b>encrypted</b> on the server. Leave a field blank to keep the current key; use Remove to clear a stored one. A key set here overrides the matching environment variable. If a key was added to the encrypted store another way (e.g. <code>debrid-hub config set</code> via <code>docker compose exec</code>, or a pre-encrypted file placed in the mounted data directory) hit <b>Load</b> to pick it up without restarting.',
+    btn_load: '⟳ Load', title_load: 'Re-read the encrypted store from disk',
+    btn_cancel: 'Cancel', btn_save_keys: 'Save keys', loading_ellipsis: 'Loading…',
+    badge_env: 'env', badge_set: 'set', badge_none: 'not set',
+    placeholder_unchanged: '•••••• unchanged', placeholder_paste_key: 'paste API key', btn_remove: 'Remove',
+    debug_title: 'Provider requests / responses',
+    debug_note: 'Raw outbound calls from the last refresh. Secret-looking params (API keys, tokens) are redacted before this ever reaches the browser.',
+    btn_close: 'Close', debug_no_calls: '(no outbound calls recorded)', debug_no_providers: 'No providers configured.',
+    ext_title: 'Extensions',
+    ext_note: 'Stremio-protocol addon manifest URLs power the <b>Discover</b> tab (browse, search, cast/posters, and sources to add straight to your debrid account). URLs often carry a personal config token — stored <b>encrypted</b> on the server, same as provider keys, and never shown again once added.',
+    ext_add_label: 'Add an extension', ext_url_placeholder: 'https://…/manifest.json', btn_add: 'Add', btn_done: 'Done',
+    ext_none_yet: 'No extensions added yet.', catalogs_count: '{n} catalog(s)',
+    title_copy_link: 'Copy direct link', title_delete: 'Delete',
+    nothing_here: 'Nothing here.', no_links_match: 'No links match your filters.', add_keys_hint: 'Add API keys and hit Refresh to pull your links.',
+    to_ignore: 'To ignore', to_ignore_note: '— whole-season link, a per-episode version already exists',
+    no_providers_configured: 'no providers configured',
+    discover_no_extensions: '<b>No extensions configured.</b>Add one from 🧩 Extensions to browse & search content.',
+    discover_nothing_to_browse: '<b>Nothing to browse.</b>None of your extensions expose a {type} catalog.',
+    discover_couldnt_load: "<b>Couldn't load.</b>{msg}",
+    couldnt_load: "<b>Couldn't load.</b>{msg}",
+    discover_search_results: 'Search results', discover_nothing_found: '<b>Nothing found.</b>',
+    discover_search_failed: '<b>Search failed.</b>{msg}',
+    discover_loading_extensions: 'loading extensions…', loading: 'loading…', searching: 'searching…',
+    nothing_here_short: 'nothing here', failed_to_load: 'failed to load',
+    show_more_sections: 'Show more sections ({n} left)',
+    detail_unknown: 'Unknown', detail_no_sources: 'No sources found from your extensions.', detail_sources: 'Sources ({n})',
+    btn_add_source: 'Add', adding_ellipsis: 'Adding…',
+    toast_link_copied: 'Link copied', toast_resolve_failed: 'Resolve failed: {msg}',
+    toast_deleting: 'Deleting {n}…', toast_delete_failed: 'Delete failed: {msg}',
+    toast_deleted: 'Deleted {ok}{fail}', toast_deleted_fail_suffix: ' · {fail} failed',
+    toast_copied_links: 'Copied {n} {link}{fails} — paste into JD2 (or it auto-catches)',
+    toast_copy_failed_suffix: ' · {n} failed', toast_failed: 'Failed: {msg}',
+    toast_config_load_failed: 'Config load failed: {msg}', toast_save_failed: 'Save failed: {msg}',
+    toast_keys_saved: 'Keys saved (encrypted)', toast_key_removed: '{provider} removed',
+    toast_remove_failed: 'Remove failed: {msg}', toast_reloaded: 'Reloaded from the encrypted store',
+    toast_reload_failed: 'Reload failed: {msg}', toast_debug_load_failed: 'Debug load failed: {msg}',
+    toast_added: 'Added — refresh your Library to see it',
+    toast_add_failed_detail: 'Failed: {reason} (this extension could not resolve it — check its own settings)',
+    toast_add_failed: 'Add failed: {msg}', toast_load_failed: 'Load failed: {msg}',
+    toast_extension_added: 'Extension added',
+    confirm_delete: 'Delete {n} item{s}{scope}?\n\nThis removes them from your debrid account and cannot be undone. Some providers delete the whole torrent/magnet (every file inside it).',
+    confirm_remove_key: 'Remove the stored {provider} key?', confirm_remove_extension: 'Remove this extension?',
+    scope_selection: ' from your selection', scope_this_season: ' from this season', scope_this_series: ' from this series', scope_ignored_items: ' from these ignored items',
+    prompt_access_key: 'Access key for Debrid Hub{required}', prompt_required: ' (required)',
+    season: 'Season', unit_season: 'season', unit_seasons: 'seasons', unit_ep: 'ep', unit_item: 'item', unit_items: 'items',
+    unit_link: 'link', unit_links: 'links',
+  },
+  fr: {
+    tagline: 'liste des liens → JDownloader2',
+    tab_library: 'Bibliothèque', tab_discover: 'Découvrir',
+    btn_groups: 'Groupes', btn_refresh: 'Actualiser', btn_extensions: 'Extensions',
+    btn_keys: 'Clés', btn_debug: 'Debug',
+    title_expand_all: 'Déplier / replier toutes les séries', title_refresh: 'Recharger depuis les fournisseurs',
+    title_extensions: 'Extensions de découverte de contenu', title_keys: 'Clés API des fournisseurs',
+    title_debug: 'Voir les requêtes/réponses brutes des fournisseurs (force une actualisation)', title_access_key: 'Définir la clé d\'accès',
+    title_lang: 'Changer de langue',
+    search_placeholder: 'rechercher un fichier ou un hôte…',
+    group_series: 'grouper les séries', title_group_toggle: 'Grouper les épisodes par série / saison',
+    sort_name: 'nom', sort_size: 'taille', sort_added: 'ajouté', sort_host: 'hôte', sort_provider: 'fournisseur', sort_kind: 'type',
+    title_sort: 'Trier par', order_asc: '▲ croissant', order_desc: '▼ décroissant', title_order: 'Direction',
+    title_select_all: 'Tout sélectionner',
+    col_name: 'nom', col_provider: 'fournisseur', col_host: 'hôte', col_kind: 'type', col_size: 'taille',
+    discover_search_placeholder: 'rechercher films et séries via vos extensions…',
+    title_content_type: 'Type de contenu', type_movies: 'films', type_series: 'séries',
+    selected: 'sélectionné(s)', btn_clear: 'Effacer', btn_delete: 'Supprimer', btn_copy_jd2: 'Copier pour JD2', copy_jd2_resolving: 'Résolution…',
+    keys_title: 'Clés API des fournisseurs', title_close: 'Fermer',
+    keys_note: 'Stockées <b>chiffrées</b> sur le serveur. Laissez un champ vide pour conserver la clé actuelle ; utilisez Supprimer pour effacer une clé enregistrée. Une clé définie ici prend le pas sur la variable d\'environnement correspondante. Si une clé a été ajoutée au stockage chiffré d\'une autre façon (ex. <code>debrid-hub config set</code> via <code>docker compose exec</code>, ou un fichier pré-chiffré placé dans le répertoire de données monté), cliquez sur <b>Charger</b> pour la prendre en compte sans redémarrer.',
+    btn_load: '⟳ Charger', title_load: 'Relire le stockage chiffré depuis le disque',
+    btn_cancel: 'Annuler', btn_save_keys: 'Enregistrer les clés', loading_ellipsis: 'Chargement…',
+    badge_env: 'env', badge_set: 'défini', badge_none: 'non défini',
+    placeholder_unchanged: '•••••• inchangé', placeholder_paste_key: 'coller la clé API', btn_remove: 'Supprimer',
+    debug_title: 'Requêtes / réponses des fournisseurs',
+    debug_note: 'Appels sortants bruts de la dernière actualisation. Les paramètres sensibles (clés API, jetons) sont masqués avant d\'arriver dans le navigateur.',
+    btn_close: 'Fermer', debug_no_calls: '(aucun appel sortant enregistré)', debug_no_providers: 'Aucun fournisseur configuré.',
+    ext_title: 'Extensions',
+    ext_note: 'Les URLs de manifest d\'extensions au protocole Stremio alimentent l\'onglet <b>Découvrir</b> (parcourir, rechercher, casting/affiches, et sources à ajouter directement à votre compte debrid). Ces URLs contiennent souvent un jeton de configuration personnel — stocké <b>chiffré</b> sur le serveur, comme les clés des fournisseurs, et jamais réaffiché une fois ajouté.',
+    ext_add_label: 'Ajouter une extension', ext_url_placeholder: 'https://…/manifest.json', btn_add: 'Ajouter', btn_done: 'Terminé',
+    ext_none_yet: 'Aucune extension ajoutée pour le moment.', catalogs_count: '{n} catalogue(s)',
+    title_copy_link: 'Copier le lien direct', title_delete: 'Supprimer',
+    nothing_here: 'Rien ici.', no_links_match: 'Aucun lien ne correspond à vos filtres.', add_keys_hint: 'Ajoutez des clés API et cliquez sur Actualiser pour récupérer vos liens.',
+    to_ignore: 'À ignorer', to_ignore_note: '— lien de saison complète, une version par épisode existe déjà',
+    no_providers_configured: 'aucun fournisseur configuré',
+    discover_no_extensions: '<b>Aucune extension configurée.</b>Ajoutez-en une depuis 🧩 Extensions pour parcourir et rechercher du contenu.',
+    discover_nothing_to_browse: '<b>Rien à parcourir.</b>Aucune de vos extensions n\'expose de catalogue {type}.',
+    discover_couldnt_load: "<b>Échec du chargement.</b>{msg}",
+    couldnt_load: "<b>Échec du chargement.</b>{msg}",
+    discover_search_results: 'Résultats de recherche', discover_nothing_found: '<b>Rien trouvé.</b>',
+    discover_search_failed: '<b>Échec de la recherche.</b>{msg}',
+    discover_loading_extensions: 'chargement des extensions…', loading: 'chargement…', searching: 'recherche…',
+    nothing_here_short: 'rien ici', failed_to_load: 'échec du chargement',
+    show_more_sections: 'Afficher plus de sections ({n} restantes)',
+    detail_unknown: 'Inconnu', detail_no_sources: 'Aucune source trouvée via vos extensions.', detail_sources: 'Sources ({n})',
+    btn_add_source: 'Ajouter', adding_ellipsis: 'Ajout…',
+    toast_link_copied: 'Lien copié', toast_resolve_failed: 'Échec de la résolution : {msg}',
+    toast_deleting: 'Suppression de {n}…', toast_delete_failed: 'Échec de la suppression : {msg}',
+    toast_deleted: '{ok} supprimé(s){fail}', toast_deleted_fail_suffix: ' · {fail} échec(s)',
+    toast_copied_links: '{n} {link} copié(s){fails} — collez dans JD2 (ou capture automatique)',
+    toast_copy_failed_suffix: ' · {n} échec(s)', toast_failed: 'Échec : {msg}',
+    toast_config_load_failed: 'Échec du chargement de la config : {msg}', toast_save_failed: 'Échec de l\'enregistrement : {msg}',
+    toast_keys_saved: 'Clés enregistrées (chiffrées)', toast_key_removed: '{provider} supprimé',
+    toast_remove_failed: 'Échec de la suppression : {msg}', toast_reloaded: 'Rechargé depuis le stockage chiffré',
+    toast_reload_failed: 'Échec du rechargement : {msg}', toast_debug_load_failed: 'Échec du chargement debug : {msg}',
+    toast_added: 'Ajouté — actualisez votre bibliothèque pour le voir',
+    toast_add_failed_detail: 'Échec : {reason} (cette extension n\'a pas pu résoudre — vérifiez ses propres réglages)',
+    toast_add_failed: 'Échec de l\'ajout : {msg}', toast_load_failed: 'Échec du chargement : {msg}',
+    toast_extension_added: 'Extension ajoutée',
+    confirm_delete: 'Supprimer {n} élément{s}{scope} ?\n\nCeci les retire de votre compte debrid et est irréversible. Certains fournisseurs suppriment tout le torrent/magnet (tous les fichiers qu\'il contient).',
+    confirm_remove_key: 'Supprimer la clé {provider} enregistrée ?', confirm_remove_extension: 'Supprimer cette extension ?',
+    scope_selection: ' de votre sélection', scope_this_season: ' de cette saison', scope_this_series: ' de cette série', scope_ignored_items: ' de ces éléments ignorés',
+    prompt_access_key: 'Clé d\'accès pour Debrid Hub{required}', prompt_required: ' (requise)',
+    season: 'Saison', unit_season: 'saison', unit_seasons: 'saisons', unit_ep: 'ép', unit_item: 'élément', unit_items: 'éléments',
+    unit_link: 'lien', unit_links: 'liens',
+  },
+};
+function detectLang(){
+  const saved=localStorage.getItem('debridhub_lang');
+  if(saved==='en'||saved==='fr') return saved;
+  return (navigator.language||'').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+}
+let LANG=detectLang();
+function t(key, vars){
+  let s=(I18N[LANG]&&I18N[LANG][key]) ?? I18N.en[key] ?? key;
+  if(vars) for(const k in vars) s=s.replaceAll('{'+k+'}', vars[k]);
+  return s;
+}
+function applyI18n(root){
+  (root||document).querySelectorAll('[data-i18n]').forEach(el=>{ el.innerHTML=t(el.dataset.i18n); });
+  (root||document).querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder=t(el.dataset.i18nPlaceholder); });
+  (root||document).querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title=t(el.dataset.i18nTitle); });
+  document.documentElement.lang=LANG;
+}
+function setLang(lang){
+  if(lang!=='en' && lang!=='fr') return;
+  LANG=lang;
+  localStorage.setItem('debridhub_lang', lang);
+  applyI18n();
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('on', b.dataset.lang===lang));
+  if(typeof render==='function') render();
+  if(typeof VIEW!=='undefined' && VIEW==='discover' && typeof DISCOVER_LOADED!=='undefined' && DISCOVER_LOADED){
+    const q=$('#discoverQ') && $('#discoverQ').value.trim();
+    if(q && typeof runDiscoverSearch==='function') runDiscoverSearch();
+    else if(typeof renderDiscoverSections==='function') renderDiscoverSections();
+  }
+}
+
 function headers(){ const h={}; if(AUTH && KEY()) h['Authorization']='Bearer '+KEY(); return h; }
 async function api(path, opts={}){
   const r = await fetch(path, {...opts, headers:{...headers(), ...(opts.headers||{})}});
@@ -436,9 +645,9 @@ async function api(path, opts={}){
 }
 function human(n){ n=+n||0; const u=['B','KB','MB','GB','TB']; let i=0;
   while(n>=1024&&i<u.length-1){n/=1024;i++;} return (i?n.toFixed(1):n.toFixed(0))+' '+u[i]; }
-function toast(msg, err){ const t=$('#toast'); t.textContent=msg;
+function toast(msg, err, ms){ const t=$('#toast'); t.textContent=msg;
   t.className='toast show'+(err?' err':''); clearTimeout(t._h);
-  t._h=setTimeout(()=>t.className='toast',2600); }
+  t._h=setTimeout(()=>t.className='toast', ms||2600); }
 function esc(s){ return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 async function clip(text){
   try{ await navigator.clipboard.writeText(text); return true; }
@@ -456,7 +665,7 @@ async function loadProviders(){
   $('#keybtn').style.display = AUTH ? '' : 'none';
   $('#dots').innerHTML = d.providers.map(p =>
     `<span class="dot ${p.healthy?'up':'down'}"><i></i>${esc(p.name)}</span>`).join('') ||
-    '<span class="dot">no providers configured</span>';
+    `<span class="dot">${t('no_providers_configured')}</span>`;
 }
 
 async function loadLinks(refresh){
@@ -638,8 +847,8 @@ function render(){
   $('#meta').textContent=`${items.length} of ${ALL.length} links · ${human(totalSize)}`;
   KEYIDS={};
   if(!items.length){
-    $('#rows').innerHTML=`<div class="state"><b>Nothing here.</b>${
-      ALL.length?'No links match your filters.':'Add API keys and hit Refresh to pull your links.'}</div>`;
+    $('#rows').innerHTML=`<div class="state"><b>${esc(t('nothing_here'))}</b>${
+      esc(ALL.length?t('no_links_match'):t('add_keys_hint'))}</div>`;
     updateTray(); return;
   }
   const grouping=$('#groupChk').checked;
@@ -665,7 +874,7 @@ function checkbox(state, cls, key){
     ${state==='all'?'checked':''} data-state="${state}"/>`;
 }
 function delBtn(cls, key, enabled){
-  return `<button class="ico del ${cls}" data-key="${esc(key||'')}" title="Delete" ${enabled?'':'disabled'}>
+  return `<button class="ico del ${cls}" data-key="${esc(key||'')}" title="${esc(t('title_delete'))}" ${enabled?'':'disabled'}>
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>`;
 }
@@ -685,7 +894,7 @@ function seriesHtml(dispName, seasons, groupKey){
       <span class="chev">${chev()}</span>
       ${checkbox(selState(ids),'gsel',key)}
       <div class="gname">${esc(dispName)}</div>
-      <div class="gmeta">${seasonNums.length} season${seasonNums.length!==1?'s':''} · ${epCount} ep</div>
+      <div class="gmeta">${seasonNums.length} ${esc(seasonNums.length!==1?t('unit_seasons'):t('unit_season'))} · ${epCount} ${esc(t('unit_ep'))}</div>
       <div class="gsize">${human(sumSize(all))}</div>
       <div class="gact">${delBtn('gdel',key,canDel)}</div>
     </div>
@@ -701,8 +910,8 @@ function seasonHtml(groupKey, sn, eps){
   return `<div class="grp season ${open?'open':''}" data-key="${esc(key)}">
       <span class="chev">${chev()}</span>
       ${checkbox(selState(ids),'gsel',key)}
-      <div class="gname">Season ${sn}</div>
-      <div class="gmeta">${sorted.length} ep</div>
+      <div class="gname">${esc(t('season'))} ${sn}</div>
+      <div class="gmeta">${sorted.length} ${esc(t('unit_ep'))}</div>
       <div class="gsize">${human(sumSize(sorted))}</div>
       <div class="gact">${delBtn('gdel',key,canDel)}</div>
     </div>
@@ -721,8 +930,8 @@ function ignoredHtml(items){
   return `<div class="grp series ignore ${open?'open':''}" data-key="${esc(IGNORE_KEY)}">
       <span class="chev">${chev()}</span>
       ${checkbox(selState(items.map(l=>l.id)),'gsel',IGNORE_KEY)}
-      <div class="gname">To ignore <span class="gnote">— whole-season link, a per-episode version already exists</span></div>
-      <div class="gmeta">${items.length} item${items.length!==1?'s':''}</div>
+      <div class="gname">${esc(t('to_ignore'))} <span class="gnote">${esc(t('to_ignore_note'))}</span></div>
+      <div class="gmeta">${items.length} ${esc(items.length!==1?t('unit_items'):t('unit_item'))}</div>
       <div class="gsize">${human(sumSize(items))}</div>
       <div class="gact">${delBtn('gdel',IGNORE_KEY,canDel)}</div>
     </div>
@@ -749,7 +958,7 @@ function rowHtml(l, isEp){
       <div class="cell-mono col-kind">${esc(l.kind)}</div>
       <div class="size">${human(l.size)}</div>
       <div class="actions">
-        <button class="ico copy" data-copy="${esc(l.id)}" title="Copy direct link">
+        <button class="ico copy" data-copy="${esc(l.id)}" title="${esc(t('title_copy_link'))}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
         ${delBtn('rdel','',canDel).replace('data-key=""','data-id="'+esc(l.id)+'"')}
@@ -769,8 +978,8 @@ async function copyOne(btn){
     const r=await resolve([id]); const res=r[id];
     if(res.error) throw new Error(res.error);
     await clip(res.url); btn.classList.add('ok');
-    setTimeout(()=>btn.classList.remove('ok'),1200); toast('Link copied');
-  }catch(e){ toast('Resolve failed: '+e.message,true); }
+    setTimeout(()=>btn.classList.remove('ok'),1200); toast(t('toast_link_copied'));
+  }catch(e){ toast(t('toast_resolve_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false; }
 }
 
@@ -778,11 +987,9 @@ async function copyOne(btn){
 async function deleteIds(ids, label){
   ids=[...new Set(ids)];
   if(!ids.length) return;
-  const msg = `Delete ${ids.length} item${ids.length!==1?'s':''}${label?' from '+label:''}?\n\n`
-    + 'This removes them from your debrid account and cannot be undone. '
-    + 'Some providers delete the whole torrent/magnet (every file inside it).';
+  const msg = t('confirm_delete', {n:ids.length, s:ids.length!==1?'s':'', scope:label||''});
   if(!confirm(msg)) return;
-  toast(`Deleting ${ids.length}…`);
+  toast(t('toast_deleting',{n:ids.length}));
   let ok=0, fail=0;
   try{
     const d=await api('/api/delete',{method:'POST',
@@ -791,8 +998,8 @@ async function deleteIds(ids, label){
       const r=(d.deleted||{})[id];
       if(r&&r.ok){ ok++; SELECTED.delete(id); } else fail++;
     }
-  }catch(e){ toast('Delete failed: '+e.message,true); return; }
-  toast(`Deleted ${ok}${fail?` · ${fail} failed`:''}`, fail>0);
+  }catch(e){ toast(t('toast_delete_failed',{msg:e.message}),true); return; }
+  toast(t('toast_deleted',{ok, fail:fail?t('toast_deleted_fail_suffix',{fail}):''}), fail>0);
   await loadLinks(true);
 }
 
@@ -816,7 +1023,7 @@ $('#selAll').onchange=e=>{
   render();
 };
 $('#clearSel').onclick=()=>{ SELECTED.clear(); render(); };
-$('#delSel').onclick=()=>deleteIds([...SELECTED],'selection');
+$('#delSel').onclick=()=>deleteIds([...SELECTED],t('scope_selection'));
 
 /* Event delegation for the rows/groups list */
 $('#rows').addEventListener('click', e=>{
@@ -824,7 +1031,7 @@ $('#rows').addEventListener('click', e=>{
   const rdel=e.target.closest('.rdel'); if(rdel){ if(!rdel.disabled) deleteIds([rdel.dataset.id],''); return; }
   const gdel=e.target.closest('.gdel');
   if(gdel){ if(!gdel.disabled){ const k=gdel.dataset.key;
-    const label = k.startsWith('SEA')?'this season':k.startsWith('IGN')?'these ignored items':'this series';
+    const label = k.startsWith('SEA')?t('scope_this_season'):k.startsWith('IGN')?t('scope_ignored_items'):t('scope_this_series');
     deleteIds(KEYIDS[k]||[], label); } return; }
   if(e.target.closest('input,button')) return;   // checkbox handled by change
   const grp=e.target.closest('.grp');
@@ -840,17 +1047,19 @@ $('#rows').addEventListener('change', e=>{
 
 $('#copyJd').onclick=async()=>{
   const ids=[...SELECTED]; if(!ids.length) return;
-  const btn=$('#copyJd'); btn.disabled=true; btn.textContent='Resolving…';
+  const btn=$('#copyJd'); btn.disabled=true; btn.textContent=t('copy_jd2_resolving');
   try{
     const r=await resolve(ids);
     const urls=[], fails=[];
     ids.forEach(id=>{ const x=r[id]||{}; x.url?urls.push(x.url):fails.push(id); });
     if(urls.length) await clip(urls.join('\n'));
-    toast(`Copied ${urls.length} link${urls.length!==1?'s':''}`+
-      (fails.length?` · ${fails.length} failed`:'')+' — paste into JD2 (or it auto-catches)', fails.length>0);
-  }catch(e){ toast('Failed: '+e.message,true); }
+    toast(t('toast_copied_links',{
+      n:urls.length, link:urls.length!==1?t('unit_links'):t('unit_link'),
+      fails:fails.length?t('toast_copy_failed_suffix',{n:fails.length}):'',
+    }), fails.length>0);
+  }catch(e){ toast(t('toast_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false;
-    btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> Copy for JD2`; }
+    btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ${esc(t('btn_copy_jd2'))}`; }
 };
 
 /* Expand / collapse every group */
@@ -865,7 +1074,7 @@ $('#expandAll').onclick=()=>{
 };
 
 function promptKey(force){
-  const k=prompt('Access key for Debrid Hub'+(force?' (required)':''), KEY());
+  const k=prompt(t('prompt_access_key',{required:force?t('prompt_required'):''}), KEY());
   if(k!==null){ localStorage.setItem('debridhub_key',k.trim()); location.reload(); }
 }
 $('#keybtn').onclick=()=>promptKey(false);
@@ -875,21 +1084,21 @@ const PROVIDERS=[['realdebrid','Real-Debrid'],['alldebrid','AllDebrid'],['torbox
 async function openConfig(){
   let data;
   try{ data=await api('/api/config'); }
-  catch(e){ if(e.message!=='unauthorized') toast('Config load failed: '+e.message,true); return; }
+  catch(e){ if(e.message!=='unauthorized') toast(t('toast_config_load_failed',{msg:e.message}),true); return; }
   const st={}; (data.providers||[]).forEach(p=>st[p.provider]=p);
   if(data.store_error) toast(data.store_error,true);
   $('#cfgFields').innerHTML=PROVIDERS.map(([id,label])=>{
     const s=st[id]||{};
     const badge=s.configured
-      ? `<span class="badge ${s.source}">${s.source==='env'?'env':'set'}</span>`
-      : `<span class="badge none">not set</span>`;
+      ? `<span class="badge ${s.source}">${s.source==='env'?esc(t('badge_env')):esc(t('badge_set'))}</span>`
+      : `<span class="badge none">${esc(t('badge_none'))}</span>`;
     const canRemove=s.configured && s.source==='stored';
     return `<div class="cfg-row">
       <label>${esc(label)} ${badge}</label>
       <div class="cfg-input">
         <input type="password" data-p="${esc(id)}" autocomplete="off" spellcheck="false"
-          placeholder="${s.configured?'•••••• unchanged':'paste API key'}"/>
-        <button class="ghost cfg-rm" data-rm="${esc(id)}" ${canRemove?'':'disabled'}>Remove</button>
+          placeholder="${s.configured?esc(t('placeholder_unchanged')):esc(t('placeholder_paste_key'))}"/>
+        <button class="ghost cfg-rm" data-rm="${esc(id)}" ${canRemove?'':'disabled'}>${esc(t('btn_remove'))}</button>
       </div>
     </div>`;
   }).join('');
@@ -904,25 +1113,25 @@ async function saveConfig(){
   const btn=$('#cfgSave'); btn.disabled=true;
   try{
     await api('/api/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    toast('Keys saved (encrypted)'); closeConfig();
+    toast(t('toast_keys_saved')); closeConfig();
     await loadProviders(); await loadLinks(true);
-  }catch(e){ if(e.message!=='unauthorized') toast('Save failed: '+e.message,true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_save_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false; }
 }
 async function removeKey(p){
-  if(!confirm('Remove the stored '+p+' key?')) return;
+  if(!confirm(t('confirm_remove_key',{provider:p}))) return;
   try{
-    await api('/api/config/'+p,{method:'DELETE'}); toast(p+' removed');
+    await api('/api/config/'+p,{method:'DELETE'}); toast(t('toast_key_removed',{provider:p}));
     await openConfig(); await loadProviders(); await loadLinks(true);
-  }catch(e){ if(e.message!=='unauthorized') toast('Remove failed: '+e.message,true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_remove_failed',{msg:e.message}),true); }
 }
 async function reloadConfig(){
-  const btn=$('#cfgReload'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Loading…';
+  const btn=$('#cfgReload'); btn.disabled=true; const orig=btn.textContent; btn.textContent=t('loading_ellipsis');
   try{
     await api('/api/config/reload',{method:'POST'});
-    toast('Reloaded from the encrypted store');
+    toast(t('toast_reloaded'));
     await openConfig(); await loadProviders(); await loadLinks(true);
-  }catch(e){ if(e.message!=='unauthorized') toast('Reload failed: '+e.message,true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_reload_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 }
 $('#settings').onclick=openConfig;
@@ -935,7 +1144,7 @@ $('#refresh').onclick=()=>loadLinks(true);
 
 /* ---- Debug: raw provider requests/responses ---- */
 async function openDebug(){
-  const btn=$('#debugBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Loading…';
+  const btn=$('#debugBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent=t('loading_ellipsis');
   try{
     const d=await api('/api/links?refresh=true&debug=true');
     ALL=d.links;
@@ -957,15 +1166,15 @@ async function openDebug(){
                 ${esc(JSON.stringify(c.params))} → <span class="st${err?' err':''}">${esc(String(c.status))}</span></div>
               <pre>${esc(bodyStr||'')}</pre>
             </div>`;
-          }).join('') : '<div class="dbg-call">(no outbound calls recorded)</div>';
+          }).join('') : `<div class="dbg-call">${esc(t('debug_no_calls'))}</div>`;
           return `<details class="dbg-provider" open>
               <summary>${esc(name)} — ${calls.length} call(s)</summary>
               <div class="dbg-calls">${body}</div>
             </details>`;
         }).join('')
-      : '<div class="dbg-provider">No providers configured.</div>';
+      : `<div class="dbg-provider">${esc(t('debug_no_providers'))}</div>`;
     $('#debugModal').hidden=false;
-  }catch(e){ if(e.message!=='unauthorized') toast('Debug load failed: '+e.message,true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_debug_load_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 }
 function closeDebug(){ $('#debugModal').hidden=true; }
@@ -1003,7 +1212,7 @@ function discSectionsHtml(sections, offset){
   return sections.map((s,i)=>`
     <div class="disc-section">
       <h3>${esc(s.addon_name)} <small>${esc(s.name)}</small></h3>
-      <div class="disc-row" id="discRow${offset+i}"><div class="state" style="padding:16px 0">loading…</div></div>
+      <div class="disc-row" id="discRow${offset+i}"><div class="state" style="padding:16px 0">${esc(t('loading'))}</div></div>
     </div>`).join('');
 }
 function discLoadRows(sections, offset){
@@ -1013,33 +1222,33 @@ function discLoadRows(sections, offset){
       const d=await api(`/api/discover/catalog?addon=${encodeURIComponent(s.addon_id)}&type=${encodeURIComponent(s.type)}&catalog=${encodeURIComponent(s.catalog_id)}`);
       const row=document.getElementById('discRow'+idx); if(!row) return;
       row.innerHTML = d.items.length ? d.items.map(it=>discCardHtml(it,s.type)).join('')
-        : `<div class="state" style="padding:16px 0">nothing here</div>`;
+        : `<div class="state" style="padding:16px 0">${esc(t('nothing_here_short'))}</div>`;
     }catch(e){
       const row=document.getElementById('discRow'+idx);
-      if(row) row.innerHTML=`<div class="state" style="padding:16px 0">failed to load</div>`;
+      if(row) row.innerHTML=`<div class="state" style="padding:16px 0">${esc(t('failed_to_load'))}</div>`;
     }
   });
 }
 async function loadDiscoverSections(){
-  $('#discoverBody').innerHTML=`<div class="state">loading extensions…</div>`;
+  $('#discoverBody').innerHTML=`<div class="state">${esc(t('discover_loading_extensions'))}</div>`;
   try{
     const d=await api('/api/discover/catalogs');
     DISCOVER_SECTIONS=d.sections||[];
     if(!DISCOVER_SECTIONS.length){
-      $('#discoverBody').innerHTML=`<div class="state"><b>No extensions configured.</b>Add one from 🧩 Extensions to browse & search content.</div>`;
+      $('#discoverBody').innerHTML=`<div class="state">${t('discover_no_extensions')}</div>`;
       return;
     }
     renderDiscoverSections();
   }catch(e){ if(e.message!=='unauthorized')
-    $('#discoverBody').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
+    $('#discoverBody').innerHTML=`<div class="state">${t('discover_couldnt_load',{msg:esc(e.message)})}</div>`; }
 }
 function renderDiscoverSections(){
   const type=$('#discoverType').value;
   const all=DISCOVER_SECTIONS.filter(s=>s.type===type);
-  if(!all.length){ $('#discoverBody').innerHTML=`<div class="state"><b>Nothing to browse.</b>None of your extensions expose a ${esc(type)} catalog.</div>`; return; }
+  if(!all.length){ $('#discoverBody').innerHTML=`<div class="state">${t('discover_nothing_to_browse',{type:esc(type)})}</div>`; return; }
   discShown=Math.min(DISC_BATCH, all.length);
   $('#discoverBody').innerHTML = discSectionsHtml(all.slice(0,discShown), 0) +
-    (all.length>discShown ? `<button class="ghost" id="discMore">Show more sections (${all.length-discShown} left)</button>` : '');
+    (all.length>discShown ? `<button class="ghost" id="discMore">${esc(t('show_more_sections',{n:all.length-discShown}))}</button>` : '');
   discLoadRows(all.slice(0,discShown), 0);
   const moreBtn=$('#discMore');
   if(moreBtn) moreBtn.onclick=()=>{
@@ -1048,7 +1257,7 @@ function renderDiscoverSections(){
     discLoadRows(next, discShown);
     discShown+=next.length;
     if(discShown>=all.length) moreBtn.remove();
-    else moreBtn.textContent=`Show more sections (${all.length-discShown} left)`;
+    else moreBtn.textContent=t('show_more_sections',{n:all.length-discShown});
   };
 }
 let discSearchDeb;
@@ -1057,15 +1266,15 @@ $('#discoverType').onchange=()=> $('#discoverQ').value.trim() ? runDiscoverSearc
 async function runDiscoverSearch(){
   const q=$('#discoverQ').value.trim();
   if(!q){ renderDiscoverSections(); return; }
-  $('#discoverBody').innerHTML=`<div class="state">searching…</div>`;
+  $('#discoverBody').innerHTML=`<div class="state">${esc(t('searching'))}</div>`;
   try{
     const type=$('#discoverType').value;
     const d=await api(`/api/discover/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}`);
     $('#discoverBody').innerHTML = d.items.length
-      ? `<div class="disc-section"><h3>Search results</h3><div class="disc-grid">${d.items.map(it=>discCardHtml(it,type)).join('')}</div></div>`
-      : `<div class="state"><b>Nothing found.</b></div>`;
+      ? `<div class="disc-section"><h3>${esc(t('discover_search_results'))}</h3><div class="disc-grid">${d.items.map(it=>discCardHtml(it,type)).join('')}</div></div>`
+      : `<div class="state">${t('discover_nothing_found')}</div>`;
   }catch(e){ if(e.message!=='unauthorized')
-    $('#discoverBody').innerHTML=`<div class="state"><b>Search failed.</b>${esc(e.message)}</div>`; }
+    $('#discoverBody').innerHTML=`<div class="state">${t('discover_search_failed',{msg:esc(e.message)})}</div>`; }
 }
 $('#discoverBody').addEventListener('click', e=>{
   const card=e.target.closest('.disc-card');
@@ -1076,7 +1285,7 @@ $('#discoverBody').addEventListener('click', e=>{
 async function openDetail(id, type){
   $('#detailModal').hidden=false;
   $('#detailBgWrap').innerHTML='';
-  $('#detailBody').innerHTML=`<div class="state">loading…</div>`;
+  $('#detailBody').innerHTML=`<div class="state">${esc(t('loading'))}</div>`;
   try{
     const [metaRes, streamRes] = await Promise.allSettled([
       api(`/api/discover/meta?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`),
@@ -1085,10 +1294,10 @@ async function openDetail(id, type){
     const meta = metaRes.status==='fulfilled' ? metaRes.value.meta : null;
     const streams = streamRes.status==='fulfilled' ? (streamRes.value.streams||[]) : [];
     renderDetail(meta, streams);
-  }catch(e){ $('#detailBody').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
+  }catch(e){ $('#detailBody').innerHTML=`<div class="state">${t('couldnt_load',{msg:esc(e.message)})}</div>`; }
 }
 function renderDetail(meta, streams){
-  const name=meta?.name||'Unknown';
+  const name=meta?.name||t('detail_unknown');
   const bg=meta?.background||'';
   const poster=meta?.poster||'';
   const desc=meta?.description||'';
@@ -1109,8 +1318,8 @@ function renderDetail(meta, streams){
         <div class="src-desc">${esc(s.description||'')}</div>
       </div>
       <div class="src-size">${s.size?human(s.size):''}</div>
-      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">Add</button>
-    </div>`).join('') : '<div class="state" style="padding:16px 0">No sources found from your extensions.</div>';
+      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">${esc(t('btn_add_source'))}</button>
+    </div>`).join('') : `<div class="state" style="padding:16px 0">${esc(t('detail_no_sources'))}</div>`;
   $('#detailBody').innerHTML = `
     <div class="detail-head">
       ${poster?`<img class="detail-poster" src="${esc(poster)}" alt=""/>`:''}
@@ -1121,16 +1330,17 @@ function renderDetail(meta, streams){
     </div>
     ${desc?`<p class="detail-desc">${esc(desc)}</p>`:''}
     ${castHtml}
-    <div class="src-list"><h3>Sources (${streams.length})</h3>${srcHtml}</div>`;
+    <div class="src-list"><h3>${esc(t('detail_sources',{n:streams.length}))}</h3>${srcHtml}</div>`;
 }
 $('#detailBody').addEventListener('click', async e=>{
   const btn=e.target.closest('button[data-token]');
   if(!btn) return;
-  const token=btn.dataset.token; btn.disabled=true; const orig=btn.textContent; btn.textContent='Adding…';
+  const token=btn.dataset.token; btn.disabled=true; const orig=btn.textContent; btn.textContent=t('adding_ellipsis');
   try{
     const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-    toast(r.ok ? 'Added — refresh your Library to see it' : 'May have failed (status '+r.status+')', !r.ok);
-  }catch(e){ toast('Add failed: '+e.message, true); }
+    if(r.ok) toast(t('toast_added'));
+    else toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
+  }catch(e){ toast(t('toast_add_failed',{msg:e.message}), true, 5000); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 });
 function closeDetail(){ $('#detailModal').hidden=true; }
@@ -1145,34 +1355,34 @@ async function refreshAddonsList(){
       <div class="addon-row" data-id="${esc(a.id)}">
         <div class="addon-info">
           <div class="addon-name">${esc(a.name)}</div>
-          <div class="addon-meta">${esc((a.resources||[]).join(', '))} · ${(a.catalogs||[]).length} catalog(s)</div>
+          <div class="addon-meta">${esc((a.resources||[]).join(', '))} · ${esc(t('catalogs_count',{n:(a.catalogs||[]).length}))}</div>
         </div>
-        <button class="ghost addon-rm" data-id="${esc(a.id)}">Remove</button>
-      </div>`).join('') : '<div class="state" style="padding:14px 0">No extensions added yet.</div>';
-  }catch(e){ if(e.message!=='unauthorized') toast('Load failed: '+e.message, true); }
+        <button class="ghost addon-rm" data-id="${esc(a.id)}">${esc(t('btn_remove'))}</button>
+      </div>`).join('') : `<div class="state" style="padding:14px 0">${esc(t('ext_none_yet'))}</div>`;
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_load_failed',{msg:e.message}), true); }
 }
 async function openAddons(){ $('#addonsModal').hidden=false; await refreshAddonsList(); }
 function closeAddons(){ $('#addonsModal').hidden=true; }
 $('#addonsList').addEventListener('click', async e=>{
   const btn=e.target.closest('.addon-rm');
   if(!btn) return;
-  if(!confirm('Remove this extension?')) return;
+  if(!confirm(t('confirm_remove_extension'))) return;
   try{
     await api('/api/addons/'+btn.dataset.id,{method:'DELETE'});
     await refreshAddonsList();
     DISCOVER_LOADED=false;
-  }catch(e){ if(e.message!=='unauthorized') toast('Remove failed: '+e.message, true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_remove_failed',{msg:e.message}), true); }
 });
 $('#addonAddBtn').onclick=async()=>{
   const input=$('#addonUrlInput'); const url=input.value.trim();
   if(!url) return;
-  const btn=$('#addonAddBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Adding…';
+  const btn=$('#addonAddBtn'); btn.disabled=true; const orig=btn.textContent; btn.textContent=t('adding_ellipsis');
   try{
     await api('/api/addons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
-    input.value=''; toast('Extension added');
+    input.value=''; toast(t('toast_extension_added'));
     await refreshAddonsList();
     DISCOVER_LOADED=false;
-  }catch(e){ if(e.message!=='unauthorized') toast('Add failed: '+e.message, true); }
+  }catch(e){ if(e.message!=='unauthorized') toast(t('toast_add_failed',{msg:e.message}), true); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 };
 $('#addonsBtn').onclick=openAddons;
@@ -1183,9 +1393,14 @@ document.addEventListener('keydown', e=>{
 });
 
 (async()=>{
+  applyI18n();
+  document.querySelectorAll('.lang-btn').forEach(b=>{
+    b.classList.toggle('on', b.dataset.lang===LANG);
+    b.onclick=()=>setLang(b.dataset.lang);
+  });
   try{ await loadProviders(); await loadLinks(false); }
   catch(e){ if(e.message!=='unauthorized')
-    $('#rows').innerHTML=`<div class="state"><b>Couldn't load.</b>${esc(e.message)}</div>`; }
+    $('#rows').innerHTML=`<div class="state">${t('couldnt_load',{msg:esc(e.message)})}</div>`; }
 })();
 </script>
 </body>

@@ -169,10 +169,13 @@ class DiscoverHub:
                 )
         return out
 
-    async def trigger(self, token: str) -> int:
+    async def trigger(self, token: str) -> tuple[int, str | None]:
         """Fetch a stream's real url -- the step that actually resolves/adds
         it to the user's debrid account for addons that work that way. Host
-        of the embedded url must match the addon it claims to come from."""
+        of the embedded url must match the addon it claims to come from.
+        Returns (status_code, detail) -- detail is the addon's own reason on
+        failure, when it gives one (e.g. an upstream hoster/debrid resolution
+        error), so a failure is diagnosable without re-running this by hand."""
         info = decode_id(token)
         addon_id, url = info["a"], info["u"]
         addon_url = self._store.get_url(addon_id)
