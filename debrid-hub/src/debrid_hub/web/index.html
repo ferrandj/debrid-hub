@@ -181,6 +181,19 @@
     margin-top:3px;line-height:1.4}
   .src-size{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap}
 
+  /* Series: season / episode picker */
+  .season-picker{margin:16px 0}
+  .season-picker .chips{margin-bottom:10px}
+  .ep-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;padding-right:2px}
+  .ep-row{display:flex;align-items:center;gap:10px;text-align:left;width:100%;background:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--text);
+    font-family:var(--ui);font-size:12px}
+  .ep-row:hover{border-color:var(--accent-dim)}
+  .ep-row.on{border-color:var(--accent);background:rgba(47,184,255,.08)}
+  .ep-num{font-family:var(--mono);color:var(--accent);font-weight:700;flex:none;width:34px}
+  .ep-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+  .ep-row.on .ep-title{color:var(--text)}
+
   /* Extensions */
   .addon-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
     border-radius:9px;margin-bottom:8px}
@@ -517,6 +530,7 @@ const I18N = {
     nothing_here_short: 'nothing here', failed_to_load: 'failed to load',
     show_more_sections: 'Show more sections ({n} left)',
     detail_unknown: 'Unknown', detail_no_sources: 'No sources found from your extensions.', detail_sources: 'Sources ({n})',
+    detail_select_episode: 'Select an episode to see its sources.',
     btn_add_source: 'Add', adding_ellipsis: 'Adding…',
     toast_link_copied: 'Link copied', toast_resolve_failed: 'Resolve failed: {msg}',
     toast_deleting: 'Deleting {n}…', toast_delete_failed: 'Delete failed: {msg}',
@@ -583,6 +597,7 @@ const I18N = {
     nothing_here_short: 'rien ici', failed_to_load: 'échec du chargement',
     show_more_sections: 'Afficher plus de sections ({n} restantes)',
     detail_unknown: 'Inconnu', detail_no_sources: 'Aucune source trouvée via vos extensions.', detail_sources: 'Sources ({n})',
+    detail_select_episode: 'Sélectionnez un épisode pour voir ses sources.',
     btn_add_source: 'Ajouter', adding_ellipsis: 'Ajout…',
     toast_link_copied: 'Lien copié', toast_resolve_failed: 'Échec de la résolution : {msg}',
     toast_deleting: 'Suppression de {n}…', toast_delete_failed: 'Échec de la suppression : {msg}',
@@ -1281,22 +1296,61 @@ $('#discoverBody').addEventListener('click', e=>{
   if(card) openDetail(card.dataset.id, card.dataset.type);
 });
 
-/* ---- Detail modal ---- */
+/* ---- Detail modal ----
+   For series, a stream's real videoId is "{imdbId}:{season}:{episode}" per
+   the Stremio protocol -- fetching /stream with just the show's own id
+   returns nothing from most addons. So for series we fetch meta first, let
+   the user pick a season then an episode, and only then fetch that
+   episode's streams (fetched lazily per-episode and cached in
+   streamsByVideo so re-clicking an already-loaded episode is instant). */
+let DETAIL = null;
 async function openDetail(id, type){
+  const D = {
+    id, type, meta:null, videos:null, season:null,
+    streams:null, activeVideoId:null, streamsByVideo:new Map(), loadingVideo:false,
+  };
+  DETAIL = D;
   $('#detailModal').hidden=false;
   $('#detailBgWrap').innerHTML='';
   $('#detailBody').innerHTML=`<div class="state">${esc(t('loading'))}</div>`;
   try{
-    const [metaRes, streamRes] = await Promise.allSettled([
-      api(`/api/discover/meta?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`),
-      api(`/api/discover/streams?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`),
-    ]);
-    const meta = metaRes.status==='fulfilled' ? metaRes.value.meta : null;
-    const streams = streamRes.status==='fulfilled' ? (streamRes.value.streams||[]) : [];
-    renderDetail(meta, streams);
-  }catch(e){ $('#detailBody').innerHTML=`<div class="state">${t('couldnt_load',{msg:esc(e.message)})}</div>`; }
+    const metaRes = await api(`/api/discover/meta?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+    if(DETAIL!==D) return;
+    D.meta = metaRes.meta;
+    const videos = Array.isArray(D.meta?.videos)
+      ? D.meta.videos.filter(v=>v && v.id!=null && v.season!=null && v.episode!=null)
+      : [];
+    if(type==='series' && videos.length){
+      D.videos = videos;
+      const seasons=[...new Set(videos.map(v=>v.season))].sort((a,b)=>a-b);
+      D.season = seasons.includes(1) ? 1 : seasons[0];
+      renderDetail();
+    } else {
+      renderDetail();
+      try{
+        const sr=await api(`/api/discover/streams?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+        if(DETAIL!==D) return;
+        D.streams = sr.streams||[];
+      }catch(e){ if(DETAIL!==D) return; D.streams=[]; }
+      renderDetail();
+    }
+  }catch(e){ if(DETAIL===D) $('#detailBody').innerHTML=`<div class="state">${t('couldnt_load',{msg:esc(e.message)})}</div>`; }
 }
-function renderDetail(meta, streams){
+function srcListHtml(streams){
+  const srcHtml = streams.length ? streams.map(s=>`
+    <div class="src-item">
+      <div class="src-info">
+        <div class="src-name"><span class="tag" style="background:var(--accent-dim);color:#d9fff8">${esc(s.addon_name)}</span>${esc(s.name||'')}</div>
+        <div class="src-desc">${esc(s.description||'')}</div>
+      </div>
+      <div class="src-size">${s.size?human(s.size):''}</div>
+      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">${esc(t('btn_add_source'))}</button>
+    </div>`).join('') : `<div class="state" style="padding:16px 0">${esc(t('detail_no_sources'))}</div>`;
+  return `<h3>${esc(t('detail_sources',{n:streams.length}))}</h3>${srcHtml}`;
+}
+function renderDetail(){
+  const D=DETAIL; if(!D) return;
+  const meta=D.meta;
   const name=meta?.name||t('detail_unknown');
   const bg=meta?.background||'';
   const poster=meta?.poster||'';
@@ -1311,15 +1365,36 @@ function renderDetail(meta, streams){
   const castHtml = castRaw.length ? `<div class="cast-row">${castRaw.slice(0,10).map(c=>`
     <div class="cast-card">${c.photo?`<img src="${esc(c.photo)}" alt=""/>`:'<div class="noimg"></div>'}
     <div class="cn">${esc(c.name||'')}</div></div>`).join('')}</div>` : '';
-  const srcHtml = streams.length ? streams.map(s=>`
-    <div class="src-item">
-      <div class="src-info">
-        <div class="src-name"><span class="tag" style="background:var(--accent-dim);color:#d9fff8">${esc(s.addon_name)}</span>${esc(s.name||'')}</div>
-        <div class="src-desc">${esc(s.description||'')}</div>
+
+  let bodyHtml;
+  if(D.videos){
+    const seasons=[...new Set(D.videos.map(v=>v.season))].sort((a,b)=>a-b);
+    const seasonChips = seasons.map(sn=>
+      `<button class="chip season-chip${sn===D.season?' on':''}" data-season="${sn}">${esc(t('season'))} ${sn}</button>`
+    ).join('');
+    const eps = D.videos.filter(v=>v.season===D.season).sort((a,b)=>a.episode-b.episode);
+    const epRows = eps.map(v=>{
+      const label=t('unit_ep')+String(v.episode).padStart(2,'0');
+      return `<button class="ep-row${v.id===D.activeVideoId?' on':''}" data-video-id="${esc(v.id)}">
+        <span class="ep-num">${esc(label)}</span><span class="ep-title">${esc(v.name||v.title||'')}</span>
+      </button>`;
+    }).join('');
+    let srcSection;
+    if(!D.activeVideoId) srcSection=`<div class="state" style="padding:16px 0">${esc(t('detail_select_episode'))}</div>`;
+    else if(D.loadingVideo) srcSection=`<div class="state" style="padding:16px 0">${esc(t('loading'))}</div>`;
+    else srcSection=srcListHtml(D.streamsByVideo.get(D.activeVideoId)||[]);
+    bodyHtml = `
+      <div class="season-picker">
+        <div class="chips">${seasonChips}</div>
+        <div class="ep-list">${epRows}</div>
       </div>
-      <div class="src-size">${s.size?human(s.size):''}</div>
-      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">${esc(t('btn_add_source'))}</button>
-    </div>`).join('') : `<div class="state" style="padding:16px 0">${esc(t('detail_no_sources'))}</div>`;
+      <div class="src-list">${srcSection}</div>`;
+  } else if(D.streams===null){
+    bodyHtml = `<div class="src-list"><div class="state" style="padding:16px 0">${esc(t('loading'))}</div></div>`;
+  } else {
+    bodyHtml = `<div class="src-list">${srcListHtml(D.streams)}</div>`;
+  }
+
   $('#detailBody').innerHTML = `
     <div class="detail-head">
       ${poster?`<img class="detail-poster" src="${esc(poster)}" alt=""/>`:''}
@@ -1330,20 +1405,42 @@ function renderDetail(meta, streams){
     </div>
     ${desc?`<p class="detail-desc">${esc(desc)}</p>`:''}
     ${castHtml}
-    <div class="src-list"><h3>${esc(t('detail_sources',{n:streams.length}))}</h3>${srcHtml}</div>`;
+    ${bodyHtml}`;
 }
 $('#detailBody').addEventListener('click', async e=>{
-  const btn=e.target.closest('button[data-token]');
-  if(!btn) return;
-  const token=btn.dataset.token; btn.disabled=true; const orig=btn.textContent; btn.textContent=t('adding_ellipsis');
-  try{
-    const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-    if(r.ok) toast(t('toast_added'));
-    else toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
-  }catch(e){ toast(t('toast_add_failed',{msg:e.message}), true, 5000); }
-  finally{ btn.disabled=false; btn.textContent=orig; }
+  const addBtn=e.target.closest('button[data-token]');
+  if(addBtn){
+    const token=addBtn.dataset.token; addBtn.disabled=true; const orig=addBtn.textContent; addBtn.textContent=t('adding_ellipsis');
+    try{
+      const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+      if(r.ok) toast(t('toast_added'));
+      else toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
+    }catch(e){ toast(t('toast_add_failed',{msg:e.message}), true, 5000); }
+    finally{ addBtn.disabled=false; addBtn.textContent=orig; }
+    return;
+  }
+  const seasonBtn=e.target.closest('button[data-season]');
+  if(seasonBtn){
+    if(!DETAIL) return;
+    DETAIL.season=+seasonBtn.dataset.season;
+    renderDetail();
+    return;
+  }
+  const epBtn=e.target.closest('button[data-video-id]');
+  if(epBtn){
+    const D=DETAIL; if(!D) return;
+    const vid=epBtn.dataset.videoId;
+    D.activeVideoId=vid;
+    if(D.streamsByVideo.has(vid)){ if(DETAIL===D) renderDetail(); return; }
+    D.loadingVideo=true; if(DETAIL===D) renderDetail();
+    try{
+      const r=await api(`/api/discover/streams?type=${encodeURIComponent(D.type)}&id=${encodeURIComponent(vid)}`);
+      D.streamsByVideo.set(vid, r.streams||[]);
+    }catch(err){ D.streamsByVideo.set(vid, []); }
+    finally{ D.loadingVideo=false; if(DETAIL===D && D.activeVideoId===vid) renderDetail(); }
+  }
 });
-function closeDetail(){ $('#detailModal').hidden=true; }
+function closeDetail(){ $('#detailModal').hidden=true; DETAIL=null; }
 $('#detailClose').onclick=closeDetail;
 $('#detailModal').onclick=e=>{ if(e.target===$('#detailModal')) closeDetail(); };
 
