@@ -60,6 +60,17 @@ Response: `{ "ok": true, "providers": [ …credential status… ] }`
 Remove a stored key (`provider` ∈ `realdebrid|alldebrid|torbox`). Env vars, if any,
 still apply afterwards. → `{ "ok": true, "providers": […] }`
 
+### `POST /api/config/reload`
+Re-read the encrypted store from disk and rebuild the live providers from it —
+no body, no key changes. `GET /api/config` already always reflects the store
+file's current contents, but the providers actually used for listing/resolving/
+deleting only pick up a change on reload. Use this after writing to the store
+out-of-band: `debrid-hub config set` run via `docker compose exec` while the
+server is already running, or a `secrets.enc`/`secret.key` pair copied into the
+mounted data directory from another host. → `{ "ok": true, "providers": […] }`
+(same shape as `GET /api/config`). Also exposed as the **⟳ Load** button next to
+Save in the UI's Keys panel.
+
 ### `GET /api/links`
 Aggregated, normalized listing.
 

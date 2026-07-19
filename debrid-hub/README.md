@@ -67,6 +67,22 @@ auto-generated `secret.key` kept alongside the store. In Docker, mount a volume 
 `DEBRID_HUB_DATA_DIR` (the compose file does this) so keys survive a recreate.
 Endpoints and CLI never echo a stored key back — only whether one is set.
 
+**Never want a key in cleartext anywhere (compose file, shell history, env)?**
+Skip env vars and the `PUT /api/config` route entirely — write straight into the
+encrypted store instead, then tell the running server to pick it up:
+
+```bash
+docker compose exec debrid-hub debrid-hub config set torbox <key>   # writes to the encrypted store only
+curl -X POST localhost:8080/api/config/reload                       # or the ⟳ Load button in ⚙ Keys
+```
+
+`GET /api/config` always reflects the store's current contents, but the live
+providers used for listing/resolving/deleting only pick up a change on reload —
+that's what `POST /api/config/reload` (and the UI's **⟳ Load** button) is for.
+This is also how you move the store between hosts: copy `secrets.enc` +
+`secret.key` from one `DEBRID_HUB_DATA_DIR` into another (matching
+`DEBRID_HUB_SECRET_KEY` if you didn't use the generated key file), then Load.
+
 ## CLI
 
 ```bash
@@ -100,6 +116,7 @@ Base URL `http://host:8080`. If `DEBRID_HUB_API_KEY` is set, send `Authorization
 | GET | `/api/config` | which provider keys are set + source (never the value) |
 | PUT | `/api/config` | body `{"realdebrid":"…"}` → save key(s), encrypted; `""` clears |
 | DELETE | `/api/config/{provider}` | remove a stored key |
+| POST | `/api/config/reload` | re-read the encrypted store from disk and rebuild providers, without changing any key |
 | GET | `/api/links` | aggregated list; query: `search, provider, kind, sort, order, refresh, debug` |
 | POST | `/api/resolve` | body `{"ids":["…"]}` (or `{"id":"…"}`) → direct URLs |
 | POST | `/api/delete` | body `{"ids":["…"]}` (or `{"id":"…"}`) → delete from provider; per-id `{"ok":true}`/`{"error":…}` |

@@ -165,6 +165,8 @@
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
   .modal-head b{font-size:16px}
   .modal-note{color:var(--muted);font-size:12px;margin:0 0 16px;line-height:1.5}
+  .modal-note code{font-family:var(--mono);background:var(--ink);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px;color:var(--text);font-size:11px}
   .cfg-row{margin-bottom:14px}
   .cfg-row label{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px}
   .cfg-input{display:flex;gap:8px}
@@ -277,9 +279,14 @@
       <button class="iconbtn" id="cfgClose" title="Close">✕</button></div>
     <p class="modal-note">Stored <b>encrypted</b> on the server. Leave a field blank to
       keep the current key; use Remove to clear a stored one. A key set here overrides
-      the matching environment variable.</p>
+      the matching environment variable. If a key was added to the encrypted store another
+      way (e.g. <code>debrid-hub config set</code> via <code>docker compose exec</code>, or a
+      pre-encrypted file placed in the mounted data directory) hit <b>Load</b> to pick it up
+      without restarting.</p>
     <div id="cfgFields"></div>
     <div class="modal-actions">
+      <button class="ghost" id="cfgReload" title="Re-read the encrypted store from disk">⟳ Load</button>
+      <div class="spacer"></div>
       <button class="ghost" id="cfgCancel">Cancel</button>
       <button class="primary" id="cfgSave">Save keys</button>
     </div>
@@ -748,7 +755,17 @@ async function removeKey(p){
     await openConfig(); await loadProviders(); await loadLinks(true);
   }catch(e){ if(e.message!=='unauthorized') toast('Remove failed: '+e.message,true); }
 }
+async function reloadConfig(){
+  const btn=$('#cfgReload'); btn.disabled=true; const orig=btn.textContent; btn.textContent='Loading…';
+  try{
+    await api('/api/config/reload',{method:'POST'});
+    toast('Reloaded from the encrypted store');
+    await openConfig(); await loadProviders(); await loadLinks(true);
+  }catch(e){ if(e.message!=='unauthorized') toast('Reload failed: '+e.message,true); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
 $('#settings').onclick=openConfig;
+$('#cfgReload').onclick=reloadConfig;
 $('#cfgClose').onclick=closeConfig; $('#cfgCancel').onclick=closeConfig;
 $('#cfgSave').onclick=saveConfig;
 $('#cfgModal').onclick=e=>{ if(e.target===$('#cfgModal')) closeConfig(); };

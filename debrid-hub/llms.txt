@@ -31,6 +31,7 @@ Key facts for agents:
 - `POST /api/resolve` `{ids:[...]}` — link ids → direct URLs
 - `POST /api/delete` `{ids:[...]}` — delete links from provider accounts (irreversible)
 - `GET /api/config` / `PUT /api/config` / `DELETE /api/config/{provider}` — encrypted key management (never returns key values)
+- `POST /api/config/reload` — re-read the encrypted store from disk and rebuild live providers (pick up a key written out-of-band, e.g. via `docker compose exec`)
 - `GET /health` — liveness
 
 ## CLI

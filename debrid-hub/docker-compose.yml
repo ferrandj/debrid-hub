@@ -1,3 +1,20 @@
+# Two ways to get provider keys into this container -- pick one per key:
+#
+# 1) Plain env vars below (via .env or your shell). Simplest, but the key sits
+#    in cleartext in .env / `docker inspect` / your shell history for as long
+#    as it's set there. Fine for a quick trial or a host only you can reach.
+#
+# 2) Never put the key in the compose file at all: leave it blank here, start
+#    the container, then write it straight into the encrypted store (which
+#    lives on the `debrid-hub-data` volume, not in this file):
+#      docker compose exec debrid-hub debrid-hub config set torbox <key>
+#    If debrid-hub was already running when you did that, hit **Load** in the
+#    UI's Keys panel (or `curl -X POST localhost:8080/api/config/reload`) so
+#    the live server picks it up without a restart. This is also how you seed
+#    the store from a key generated/rotated on another machine: copy the
+#    `secrets.enc` + `secret.key` pair from that machine's data dir into this
+#    one's volume (matching DEBRID_HUB_SECRET_KEY if you didn't use the
+#    generated key file), then Load.
 services:
   debrid-hub:
     build: .
@@ -7,11 +24,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Persists keys added via the UI/CLI/API (encrypted) + the auto-generated
-      # master key. Without this, they are lost when the container is recreated.
+      # Encrypted keys + the auto-generated master key live here. Without this
+      # volume, both are lost when the container is recreated.
       - debrid-hub-data:/data
     environment:
-      # Optional: seed keys here, or leave empty and add them in the UI (⚙ Keys).
+      # One env var per provider -- see note above on cleartext vs. encrypted.
+      # Leave blank and use `config set` / the UI instead if that matters to you.
       DEBRID_REALDEBRID_TOKEN: "${DEBRID_REALDEBRID_TOKEN:-}"
       DEBRID_ALLDEBRID_APIKEY: "${DEBRID_ALLDEBRID_APIKEY:-}"
       DEBRID_TORBOX_APIKEY: "${DEBRID_TORBOX_APIKEY:-}"
@@ -20,9 +38,10 @@ services:
       DEBRID_HUB_CACHE_TTL: "60"
       DEBRID_HUB_DATA_DIR: "/data"
       # Optional: pin the encryption master key (else auto-generated in /data).
+      # Set this if you want to move the encrypted store between hosts.
       DEBRID_HUB_SECRET_KEY: "${DEBRID_HUB_SECRET_KEY:-}"
       # DEBRID_HUB_MOCK: "1"   # demo data, no keys needed
-    # env_file: .env           # alternative to the block above
+    # env_file: .env           # alternative to the environment: block above
 
 volumes:
   debrid-hub-data:

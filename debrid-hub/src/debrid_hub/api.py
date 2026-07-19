@@ -97,6 +97,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
         return {"ok": True, "providers": agg.credential_status()}
 
+    @app.post("/api/config/reload", dependencies=[Depends(auth)])
+    async def reload_config():
+        """Re-read the encrypted credential store from disk and rebuild providers
+        from it, without changing any key. `GET /api/config` already always
+        reflects the file's current contents, but the live providers used for
+        listing/resolving/deleting only pick up a change on reload. Use this
+        after updating the store out-of-band -- e.g. `debrid-hub config set`
+        run via `docker compose exec`, or a pre-encrypted `secrets.enc` dropped
+        into the mounted data directory while the server is already running."""
+        try:
+            agg.reload()
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
+        return {"ok": True, "providers": agg.credential_status()}
+
     @app.get("/api/links", dependencies=[Depends(auth)])
     async def links(
         search: str | None = None,

@@ -200,6 +200,51 @@
         }
       }
     },
+    "/api/config/reload": {
+      "post": {
+        "summary": "Reload Config",
+        "description": "Re-read the encrypted credential store from disk and rebuild providers\nfrom it, without changing any key. `GET /api/config` already always\nreflects the file's current contents, but the live providers used for\nlisting/resolving/deleting only pick up a change on reload. Use this\nafter updating the store out-of-band -- e.g. `debrid-hub config set`\nrun via `docker compose exec`, or a pre-encrypted `secrets.enc` dropped\ninto the mounted data directory while the server is already running.",
+        "operationId": "reload_config_api_config_reload_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/links": {
       "get": {
         "summary": "Links",

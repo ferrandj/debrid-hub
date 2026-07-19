@@ -154,6 +154,29 @@ by hand again.
 - Stored key **values are never returned** by any endpoint or CLI command — only
   whether a key is set and where it came from (`stored` vs `env`).
 
+### Two ways to write a key, one way to make the live server notice
+
+`GET /api/config` (and the CLI's `config list`) call `credential_status()`,
+which builds a fresh `SecretStore` and reads `secrets.enc` straight off disk
+every time — so the *displayed* status is always current. The live
+`Provider` instances actually used for listing/resolving/deleting are a
+different thing: they're rebuilt only when `Aggregator.reload()` runs, which
+today happens automatically after `PUT /api/config` and `DELETE
+/api/config/{provider}` (the UI Save/Remove flow), but **not** if the store
+file changes some other way while the server keeps running:
+
+- `debrid-hub config set/remove` executed against the same `DEBRID_HUB_DATA_DIR`
+  (e.g. via `docker compose exec`) while `debrid-hub serve` is already up.
+- A `secrets.enc` + `secret.key` pair copied in from another host's data dir
+  (e.g. to move the store, or to seed it before ever touching the UI).
+
+`POST /api/config/reload` (UI: the **⟳ Load** button next to Save in the Keys
+panel) closes that gap — it just calls `Aggregator.reload()` on demand. This is
+the mechanism to reach for whenever you want provider keys **encrypted at rest
+and never in cleartext anywhere** (not in `docker-compose.yml`, not in a shell
+env, not in `docker inspect`): write via `config set`, then Load, and skip env
+vars and `PUT /api/config` entirely.
+
 ## Settings (env vars)
 
 | Var | Default | Meaning |
