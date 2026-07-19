@@ -19,16 +19,35 @@ One place to see every link across your debrid accounts — **Real-Debrid, AllDe
 
 ## Quick start (Docker, e.g. on your NAS)
 
+`docker-compose.yml` pulls the published image (`ghcr.io/ferrandj/debrid-hub`,
+built for amd64+arm64 by CI on every push to master) — no build step needed on
+the NAS itself:
+
 ```bash
 cp .env.example .env      # fill in the keys you have
-docker compose up -d --build
+docker login ghcr.io -u <github-username>   # one-time: package is private, see below
+docker compose pull
+docker compose up -d
 # open http://<nas-ip>:8080
 ```
+
+**Updating later is just:**
+```bash
+docker compose pull && docker compose up -d
+```
+
+The GHCR package inherits this repo's (private) visibility, so pulling it
+needs a one-time login with a GitHub personal access token that has the
+`read:packages` scope: `echo <token> | docker login ghcr.io -u <github-username>
+--password-stdin`. Generate one at github.com/settings/tokens.
+
+Prefer to build on the NAS instead of pulling? In `docker-compose.yml`, comment
+out `image:` and uncomment `build: .`, then `docker compose up -d --build`.
 
 Try it with no keys first:
 
 ```bash
-DEBRID_HUB_MOCK=1 docker compose up --build
+DEBRID_HUB_MOCK=1 docker compose up -d
 ```
 
 ## Quick start (local)

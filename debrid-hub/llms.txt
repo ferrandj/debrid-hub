@@ -18,6 +18,10 @@ Key facts for agents:
   silently. `?debug=true` on `/api/links` (or `--debug`, or the UI's Debug button)
   shows every outbound request/response made while listing, secrets redacted.
 - Try with no keys: `DEBRID_HUB_MOCK=1 debrid-hub serve`.
+- Docker deploys pull `ghcr.io/ferrandj/debrid-hub` (published by CI on every
+  push to master, amd64+arm64); updating is `docker compose pull && docker
+  compose up -d`. There is intentionally no way to push code into a running
+  container from the UI/API — that would be remote code execution.
 
 ## Docs
 - [Product & architecture](docs/PRODUCT.md): concepts, request flow, providers, grouping, settings, extending.

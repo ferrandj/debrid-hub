@@ -210,6 +210,20 @@ Add a provider by subclassing `Provider` (`providers/base.py`): implement
 `Aggregator._build()`. Everything else (UI, CLI, API, grouping) picks it up with no
 further changes.
 
+## CI / image publishing
+
+`.github/workflows/docker-publish.yml` builds and pushes
+`ghcr.io/ferrandj/debrid-hub` (amd64+arm64) on every push to master that
+touches `debrid-hub/**`, tagged `:latest` and `:sha-<commit>`. This exists so a
+deployment (e.g. a NAS) never needs to build the image itself — `docker compose
+pull && docker compose up -d` is the entire update procedure. There is
+deliberately **no** in-app mechanism to push code into a running container or
+trigger its own restart from the web UI: that would be a remote-code-execution
+surface on anything reachable from the browser (including a stolen
+`DEBRID_HUB_API_KEY` or a Cloudflare Tunnel misconfiguration), and container
+filesystem patches wouldn't survive a recreate anyway — this CI pipeline is the
+intended replacement for that idea.
+
 ## Safety notes for automated agents
 
 - **Deletion is destructive and irreversible.** Some providers delete a whole

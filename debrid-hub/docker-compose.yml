@@ -1,3 +1,18 @@
+# Image: ghcr.io/ferrandj/debrid-hub, built + pushed by
+# .github/workflows/docker-publish.yml on every push to master (amd64+arm64).
+# Deploying an update anywhere (e.g. a NAS) is then just:
+#   docker compose pull && docker compose up -d
+# -- no rebuild on that machine, no manual image transfer.
+#
+# The GHCR package inherits this repo's visibility (private). To pull it from
+# another machine, log in once with a GitHub personal access token that has
+# the `read:packages` scope (classic token, or a fine-grained token scoped to
+# this repo's package):
+#   echo <token> | docker login ghcr.io -u <github-username> --password-stdin
+#
+# Prefer to build locally instead (e.g. while developing)? Swap the two lines
+# below: comment out `image:`, uncomment `build: .`.
+#
 # Two ways to get provider keys into this container -- pick one per key:
 #
 # 1) Plain env vars below (via .env or your shell). Simplest, but the key sits
@@ -17,8 +32,8 @@
 #    generated key file), then Load.
 services:
   debrid-hub:
-    build: .
-    # image: debrid-hub:latest   # or use a prebuilt image
+    image: ghcr.io/ferrandj/debrid-hub:latest
+    # build: .   # uncomment to build locally instead of pulling
     container_name: debrid-hub
     restart: unless-stopped
     ports:
