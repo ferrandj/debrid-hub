@@ -174,11 +174,19 @@
   .badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;
     text-transform:uppercase;letter-spacing:.4px}
   .badge.stored{background:var(--accent-dim);color:#d9fff8}
-  .debug-card{max-width:760px}
-  .dbg-provider{margin-bottom:16px}
-  .dbg-provider h4{margin:0 0 8px;font-size:13px;color:var(--text)}
+  .debug-card{max-width:760px;max-height:82vh;display:flex;flex-direction:column}
+  .debug-card .modal-head,.debug-card .modal-note,.debug-card .modal-actions{flex:none}
+  #debugBody{flex:1;min-height:0;overflow-y:auto;margin:0 -6px;padding:0 6px}
+  .dbg-provider{margin-bottom:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .dbg-provider summary{padding:9px 12px;cursor:pointer;user-select:none;list-style:none;
+    display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);background:var(--panel2)}
+  .dbg-provider summary::-webkit-details-marker{display:none}
+  .dbg-provider summary::before{content:'▶';font-size:10px;color:var(--muted);transition:transform .15s}
+  .dbg-provider[open] summary::before{transform:rotate(90deg)}
+  .dbg-provider .dbg-calls{padding:10px}
   .dbg-call{background:var(--ink);border:1px solid var(--line);border-radius:8px;
     padding:8px 10px;margin-bottom:8px;font-family:var(--mono);font-size:11px}
+  .dbg-call:last-child{margin-bottom:0}
   .dbg-call .ln{color:var(--text);word-break:break-all}
   .dbg-call .ln .m{color:var(--accent);font-weight:700}
   .dbg-call .ln .st{color:var(--muted)}
@@ -763,17 +771,19 @@ async function openDebug(){
     $('#debugBody').innerHTML = names.length
       ? names.map(name=>{
           const calls=logs[name]||[];
-          return `<div class="dbg-provider"><h4>${esc(name)} — ${calls.length} call(s)</h4>${
-            calls.length ? calls.map(c=>{
-              const err=!(c.status>=200 && c.status<300);
-              let bodyStr=c.body; if(typeof bodyStr!=='string') bodyStr=JSON.stringify(bodyStr,null,2);
-              return `<div class="dbg-call">
-                <div class="ln"><span class="m">${esc(c.method)}</span> ${esc(c.url)}
-                  ${esc(JSON.stringify(c.params))} → <span class="st${err?' err':''}">${esc(String(c.status))}</span></div>
-                <pre>${esc(bodyStr||'')}</pre>
-              </div>`;
-            }).join('') : '<div class="dbg-call">(no outbound calls recorded)</div>'
-          }</div>`;
+          const body = calls.length ? calls.map(c=>{
+            const err=!(c.status>=200 && c.status<300);
+            let bodyStr=c.body; if(typeof bodyStr!=='string') bodyStr=JSON.stringify(bodyStr,null,2);
+            return `<div class="dbg-call">
+              <div class="ln"><span class="m">${esc(c.method)}</span> ${esc(c.url)}
+                ${esc(JSON.stringify(c.params))} → <span class="st${err?' err':''}">${esc(String(c.status))}</span></div>
+              <pre>${esc(bodyStr||'')}</pre>
+            </div>`;
+          }).join('') : '<div class="dbg-call">(no outbound calls recorded)</div>';
+          return `<details class="dbg-provider" open>
+              <summary>${esc(name)} — ${calls.length} call(s)</summary>
+              <div class="dbg-calls">${body}</div>
+            </details>`;
         }).join('')
       : '<div class="dbg-provider">No providers configured.</div>';
     $('#debugModal').hidden=false;
