@@ -50,11 +50,14 @@ class TorBox(Provider):
             raise RuntimeError(j.get("detail") or j.get("error") or "torbox error")
         return j.get("data")
 
-    async def list_links(self) -> list[DebridLink]:
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
         out: list[DebridLink] = []
+        # TorBox caches mylist server-side; bypass it on an explicit refresh so a
+        # just-deleted torrent doesn't keep coming back.
+        bypass = "true" if force else "false"
         for kind, path in _LIST:
             try:
-                data = await self._get(path, bypass_cache="false")
+                data = await self._get(path, bypass_cache=bypass)
             except Exception:
                 continue
             for item in (data or []):

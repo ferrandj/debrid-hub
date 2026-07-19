@@ -20,8 +20,13 @@ class Provider(abc.ABC):
         self._client = client
 
     @abc.abstractmethod
-    async def list_links(self) -> list[DebridLink]:
-        """Return every downloadable item the account holds (metadata only, cheap)."""
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
+        """Return every downloadable item the account holds (metadata only, cheap).
+
+        ``force`` is set when the user explicitly refreshes; providers that sit
+        behind their own server-side cache should bypass it in that case so a
+        just-deleted item doesn't linger.
+        """
 
     @abc.abstractmethod
     async def resolve(self, hint: dict) -> str:

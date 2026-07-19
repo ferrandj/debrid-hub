@@ -29,7 +29,7 @@ class RealDebrid(Provider):
         r.raise_for_status()
         return r.json()
 
-    async def list_links(self) -> list[DebridLink]:
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
         out: list[DebridLink] = []
         page = 1
         while page <= 50:  # hard cap: 50 pages * 100 = 5000 items

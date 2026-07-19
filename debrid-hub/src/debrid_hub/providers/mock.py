@@ -40,7 +40,7 @@ class Mock(Provider):
         super().__init__(client)
         self._deleted: set[str] = set()
 
-    async def list_links(self) -> list[DebridLink]:
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
         out: list[DebridLink] = []
         for i, (name, size, kind, host) in enumerate(_SAMPLES):
             url = f"https://example.com/{i}/{name}"

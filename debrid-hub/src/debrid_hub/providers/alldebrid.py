@@ -34,7 +34,7 @@ class AllDebrid(Provider):
             raise RuntimeError(err.get("message") or err.get("code") or "alldebrid error")
         return j.get("data", {})
 
-    async def list_links(self) -> list[DebridLink]:
+    async def list_links(self, force: bool = False) -> list[DebridLink]:
         out: list[DebridLink] = []
 
         # Saved links

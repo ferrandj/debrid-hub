@@ -113,7 +113,7 @@ class Aggregator:
 
         names = list(self._providers)
         results = await asyncio.gather(
-            *(p.list_links() for p in self._providers.values()),
+            *(p.list_links(force=force) for p in self._providers.values()),
             return_exceptions=True,
         )
         links: list[DebridLink] = []
