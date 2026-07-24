@@ -17,6 +17,8 @@ class Settings:
     enable_mock: bool = False    # inject a demo provider (no keys needed)
     data_dir: str = ""           # where the encrypted credential store lives
     secret_key: str = ""         # master key for the store (else auto-generated)
+    watch_dir: str = ""          # folder (mount a volume here) to drop JD2 link files into
+    watch_cleanup_minutes: int = 0   # purge dropped files older than this many minutes; 0 disables
 
 
 def _flag(name: str) -> bool:
@@ -42,4 +44,6 @@ def get_settings() -> Settings:
         enable_mock=_flag("DEBRID_HUB_MOCK"),
         data_dir=default_data_dir(),
         secret_key=os.getenv("DEBRID_HUB_SECRET_KEY", "").strip(),
+        watch_dir=os.getenv("DEBRID_HUB_WATCH_DIR", "").strip(),
+        watch_cleanup_minutes=int(os.getenv("DEBRID_HUB_WATCH_CLEANUP_MINUTES", "0")),
     )

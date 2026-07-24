@@ -488,6 +488,7 @@
 const $ = s => document.querySelector(s);
 let ALL = [], SELECTED = new Set(), AUTH = false;
 let CAPS = {};                 // provider -> [capabilities]
+let WATCH = {enabled:false, cleanup_minutes:0};   // JD2 watch-folder drop, in place of clipboard
 let EXPANDED = new Set();      // open group keys
 let KEYIDS = {};               // group key -> [link ids] (rebuilt each render)
 const SEP = '§';
@@ -513,6 +514,9 @@ const I18N = {
     discover_search_placeholder: 'search movies & shows across your extensions…',
     title_content_type: 'Content type', type_movies: 'movies', type_series: 'series',
     selected: 'selected', btn_clear: 'Clear', btn_delete: 'Delete', btn_copy_jd2: 'Copy for JD2', copy_jd2_resolving: 'Resolving…',
+    btn_start_download: 'Start Download', start_download_sending: 'Sending…',
+    toast_sent_to_folder: 'Sent {n} {link} to watch folder ({file}){fails}',
+    toast_send_failed: 'Send failed: {msg}',
     keys_title: 'Provider API keys', title_close: 'Close',
     keys_note: 'Stored <b>encrypted</b> on the server. Leave a field blank to keep the current key; use Remove to clear a stored one. A key set here overrides the matching environment variable. If a key was added to the encrypted store another way (e.g. <code>debrid-hub config set</code> via <code>docker compose exec</code>, or a pre-encrypted file placed in the mounted data directory) hit <b>Load</b> to pick it up without restarting.',
     btn_load: '⟳ Load', title_load: 'Re-read the encrypted store from disk',
@@ -582,6 +586,9 @@ const I18N = {
     discover_search_placeholder: 'rechercher films et séries via vos extensions…',
     title_content_type: 'Type de contenu', type_movies: 'films', type_series: 'séries',
     selected: 'sélectionné(s)', btn_clear: 'Effacer', btn_delete: 'Supprimer', btn_copy_jd2: 'Copier pour JD2', copy_jd2_resolving: 'Résolution…',
+    btn_start_download: 'Démarrer le téléchargement', start_download_sending: 'Envoi…',
+    toast_sent_to_folder: '{n} {link} envoyé(s) vers le dossier surveillé ({file}){fails}',
+    toast_send_failed: 'Échec de l\'envoi : {msg}',
     keys_title: 'Clés API des fournisseurs', title_close: 'Fermer',
     keys_note: 'Stockées <b>chiffrées</b> sur le serveur. Laissez un champ vide pour conserver la clé actuelle ; utilisez Supprimer pour effacer une clé enregistrée. Une clé définie ici prend le pas sur la variable d\'environnement correspondante. Si une clé a été ajoutée au stockage chiffré d\'une autre façon (ex. <code>debrid-hub config set</code> via <code>docker compose exec</code>, ou un fichier pré-chiffré placé dans le répertoire de données monté), cliquez sur <b>Charger</b> pour la prendre en compte sans redémarrer.',
     btn_load: '⟳ Charger', title_load: 'Relire le stockage chiffré depuis le disque',
@@ -657,6 +664,7 @@ function setLang(lang){
   localStorage.setItem('debridhub_lang', lang);
   applyI18n();
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('on', b.dataset.lang===lang));
+  if(typeof syncTrayButton==='function') syncTrayButton();
   if(typeof render==='function') render();
   if(typeof VIEW!=='undefined' && VIEW==='discover' && typeof DISCOVER_LOADED!=='undefined' && DISCOVER_LOADED){
     const q=$('#discoverQ') && $('#discoverQ').value.trim();
@@ -695,6 +703,18 @@ async function loadProviders(){
   $('#dots').innerHTML = d.providers.map(p =>
     `<span class="dot ${p.healthy?'up':'down'}"><i></i>${esc(p.name)}</span>`).join('') ||
     `<span class="dot">${t('no_providers_configured')}</span>`;
+}
+
+async function loadWatchFolder(){
+  try{ WATCH = await api('/api/watchfolder'); }catch(e){ WATCH = {enabled:false, cleanup_minutes:0}; }
+  syncTrayButton();
+}
+function syncTrayButton(){
+  const btn=$('#copyJd'); if(!btn || btn.disabled) return;
+  btn.dataset.mode = WATCH.enabled ? 'folder' : 'clipboard';
+  btn.innerHTML = WATCH.enabled
+    ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> ${esc(t('btn_start_download'))}`
+    : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ${esc(t('btn_copy_jd2'))}`;
 }
 
 async function loadLinks(refresh){
@@ -1074,21 +1094,38 @@ $('#rows').addEventListener('change', e=>{
     ids.forEach(id=>gsel.checked?SELECTED.add(id):SELECTED.delete(id)); render(); }
 });
 
+async function copyToClipboard(ids, btn){
+  const r=await resolve(ids);
+  const urls=[], fails=[];
+  ids.forEach(id=>{ const x=r[id]||{}; x.url?urls.push(x.url):fails.push(id); });
+  if(urls.length) await clip(urls.join('\n'));
+  toast(t('toast_copied_links',{
+    n:urls.length, link:urls.length!==1?t('unit_links'):t('unit_link'),
+    fails:fails.length?t('toast_copy_failed_suffix',{n:fails.length}):'',
+  }), fails.length>0);
+}
+async function sendToWatchFolder(ids, btn){
+  const label = ids.length===1
+    ? (ALL.find(l=>l.id===ids[0])||{}).name
+    : `${ids.length}_links`;
+  const body = await api('/api/watchfolder/drop',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids, name:label})});
+  const failCount = Object.keys(body.errors||{}).length;
+  if(!body.ok && !body.written){ toast(t('toast_send_failed',{msg:'no URL could be resolved'}),true); return; }
+  toast(t('toast_sent_to_folder',{
+    n:body.written, link:body.written!==1?t('unit_links'):t('unit_link'), file:body.file,
+    fails:failCount?t('toast_copy_failed_suffix',{n:failCount}):'',
+  }), failCount>0);
+}
 $('#copyJd').onclick=async()=>{
   const ids=[...SELECTED]; if(!ids.length) return;
-  const btn=$('#copyJd'); btn.disabled=true; btn.textContent=t('copy_jd2_resolving');
+  const btn=$('#copyJd'); const folderMode = btn.dataset.mode==='folder';
+  btn.disabled=true; btn.textContent=folderMode?t('start_download_sending'):t('copy_jd2_resolving');
   try{
-    const r=await resolve(ids);
-    const urls=[], fails=[];
-    ids.forEach(id=>{ const x=r[id]||{}; x.url?urls.push(x.url):fails.push(id); });
-    if(urls.length) await clip(urls.join('\n'));
-    toast(t('toast_copied_links',{
-      n:urls.length, link:urls.length!==1?t('unit_links'):t('unit_link'),
-      fails:fails.length?t('toast_copy_failed_suffix',{n:fails.length}):'',
-    }), fails.length>0);
+    if(folderMode) await sendToWatchFolder(ids, btn);
+    else await copyToClipboard(ids, btn);
   }catch(e){ toast(t('toast_failed',{msg:e.message}),true); }
-  finally{ btn.disabled=false;
-    btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ${esc(t('btn_copy_jd2'))}`; }
+  finally{ btn.disabled=false; syncTrayButton(); }
 };
 
 /* Expand / collapse every group */
@@ -1585,7 +1622,7 @@ document.addEventListener('keydown', e=>{
     b.classList.toggle('on', b.dataset.lang===LANG);
     b.onclick=()=>setLang(b.dataset.lang);
   });
-  try{ await loadProviders(); await loadLinks(false); }
+  try{ await loadProviders(); await loadWatchFolder(); await loadLinks(false); }
   catch(e){ if(e.message!=='unauthorized')
     $('#rows').innerHTML=`<div class="state">${t('couldnt_load',{msg:esc(e.message)})}</div>`; }
 })();

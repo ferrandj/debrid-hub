@@ -42,6 +42,9 @@ services:
       # Encrypted keys + the auto-generated master key live here. Without this
       # volume, both are lost when the container is recreated.
       - debrid-hub-data:/data
+      # Optional: JD2 watch-folder drop, instead of clipboard -- point
+      # JDownloader2's FolderWatch extension at the same host path.
+      # - /path/on/host/jd2-watch:/watch
     environment:
       # One env var per provider -- see note above on cleartext vs. encrypted.
       # Leave blank and use `config set` / the UI instead if that matters to you.
@@ -55,6 +58,10 @@ services:
       # Optional: pin the encryption master key (else auto-generated in /data).
       # Set this if you want to move the encrypted store between hosts.
       DEBRID_HUB_SECRET_KEY: "${DEBRID_HUB_SECRET_KEY:-}"
+      # Optional: folder for the JD2 "Start Download" watch-folder flow (see
+      # the volume above) -- unset keeps the tray's clipboard-based flow.
+      # DEBRID_HUB_WATCH_DIR: "/watch"
+      # DEBRID_HUB_WATCH_CLEANUP_MINUTES: "60"
       # DEBRID_HUB_MOCK: "1"   # demo data, no keys needed
     # env_file: .env           # alternative to the environment: block above
 
