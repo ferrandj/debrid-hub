@@ -129,6 +129,57 @@ class TestConfig:
         assert "torbox" in [p["name"] for p in after["providers"]]
 
 
+class TestWatchFolder:
+    def test_status_disabled_by_default(self, data_dir):
+        with app_client(data_dir=data_dir) as client:
+            body = client.get("/api/watchfolder").json()
+        assert body == {"enabled": False, "cleanup_minutes": 0}
+
+    def test_status_enabled_when_configured(self, data_dir, tmp_path):
+        watch_dir = str(tmp_path / "watch")
+        with app_client(data_dir=data_dir, watch_dir=watch_dir, watch_cleanup_minutes=60) as client:
+            body = client.get("/api/watchfolder").json()
+        assert body == {"enabled": True, "cleanup_minutes": 60}
+
+    def test_drop_without_configured_folder_is_400(self, data_dir):
+        with app_client(data_dir=data_dir, enable_mock=True) as client:
+            link_id = client.get("/api/links").json()["links"][0]["id"]
+            r = client.post("/api/watchfolder/drop", json={"id": link_id})
+        assert r.status_code == 400
+
+    def test_drop_requires_id_or_ids(self, data_dir, tmp_path):
+        with app_client(data_dir=data_dir, enable_mock=True, watch_dir=str(tmp_path)) as client:
+            r = client.post("/api/watchfolder/drop", json={})
+        assert r.status_code == 400
+
+    def test_drop_writes_file_with_resolved_urls(self, data_dir, tmp_path):
+        watch_dir = tmp_path / "watch"
+        with app_client(data_dir=data_dir, enable_mock=True, watch_dir=str(watch_dir)) as client:
+            links = client.get("/api/links").json()["links"]
+            ids = [l["id"] for l in links[:2]]
+            body = client.post("/api/watchfolder/drop", json={"ids": ids, "name": "My Batch"}).json()
+        assert body["ok"] is True
+        assert body["written"] == 2
+        files = list(watch_dir.iterdir())
+        assert len(files) == 1
+        assert files[0].name.startswith("My_Batch_")
+        content = files[0].read_text().strip().splitlines()
+        assert len(content) == 2
+
+    def test_drop_defaults_filename_when_no_name_given(self, data_dir, tmp_path):
+        watch_dir = tmp_path / "watch"
+        with app_client(data_dir=data_dir, enable_mock=True, watch_dir=str(watch_dir)) as client:
+            link_id = client.get("/api/links").json()["links"][0]["id"]
+            body = client.post("/api/watchfolder/drop", json={"id": link_id}).json()
+        assert body["ok"] is True
+        assert list(watch_dir.iterdir())[0].name.startswith("download_")
+
+    def test_requires_auth_when_configured(self, data_dir, tmp_path):
+        with app_client(data_dir=data_dir, api_key="secret123", watch_dir=str(tmp_path)) as client:
+            assert client.get("/api/watchfolder").status_code == 401
+            assert client.post("/api/watchfolder/drop", json={"id": "x"}).status_code == 401
+
+
 class TestAddons:
     def _inject_manifest(self, client, manifest):
         """Route the DiscoverHub's internal client through a MockTransport

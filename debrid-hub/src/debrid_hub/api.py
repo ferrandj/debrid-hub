@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from . import addons as addons_client
+from . import watchfolder
 from .aggregator import Aggregator, filter_sort
 from .config import Settings, get_settings
 from .discover import DiscoverHub
@@ -29,6 +30,17 @@ class DeleteRequest(BaseModel):
 
     ids: list[str] | None = Field(default=None, description="Opaque link ids to delete.")
     id: str | None = Field(default=None, description="A single link id (shorthand for ids=[id]).")
+
+
+class WatchFolderDropRequest(BaseModel):
+    """Link ids to resolve and drop into the watch folder as a JD2 link file."""
+
+    ids: list[str] | None = Field(default=None, description="Opaque link ids to resolve.")
+    id: str | None = Field(default=None, description="A single link id (shorthand for ids=[id]).")
+    name: str | None = Field(
+        default=None,
+        description="Label for the dropped file, e.g. the item's display name. Sanitized and timestamped server-side.",
+    )
 
 
 class ConfigRequest(BaseModel):
@@ -69,10 +81,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     agg = Aggregator(settings)
     discover = DiscoverHub(settings)
+    cleaner = watchfolder.WatchFolderCleaner(settings)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        cleaner.start()
         yield
+        await cleaner.stop()
         await agg.aclose()
         await discover.aclose()
 
@@ -207,6 +222,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except Exception as exc:  # noqa: BLE001
                 out[link_id] = {"error": f"{type(exc).__name__}: {exc}"}
         return {"deleted": out}
+
+    # -- Watch folder: drop resolved URLs as a text file for JD2 FolderWatch -
+    # Alternative to the clipboard-based "Copy for JD2" flow: instead of
+    # copying URLs, write them into a file inside a mounted folder that
+    # JDownloader2's FolderWatch extension is watching. See README.
+
+    @app.get("/api/watchfolder", dependencies=[Depends(auth)])
+    async def watchfolder_status():
+        return {
+            "enabled": bool(settings.watch_dir),
+            "cleanup_minutes": settings.watch_cleanup_minutes,
+        }
+
+    @app.post("/api/watchfolder/drop", dependencies=[Depends(auth)])
+    async def watchfolder_drop(body: WatchFolderDropRequest):
+        if not settings.watch_dir:
+            raise HTTPException(status_code=400, detail="No watch folder configured (set DEBRID_HUB_WATCH_DIR).")
+        ids = body.ids or ([body.id] if body.id else None)
+        if not ids:
+            raise HTTPException(status_code=400, detail="Provide 'id' or 'ids'.")
+        urls: list[str] = []
+        errors: dict[str, str] = {}
+        for link_id in ids:
+            try:
+                urls.append(await agg.resolve(link_id))
+            except Exception as exc:  # noqa: BLE001
+                errors[link_id] = f"{type(exc).__name__}: {exc}"
+        if not urls:
+            return {"ok": False, "written": 0, "errors": errors}
+        label = body.name or (f"{len(urls)}_links" if len(urls) > 1 else "download")
+        try:
+            path = watchfolder.write_drop(settings.watch_dir, label, urls)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
+        return {"ok": True, "written": len(urls), "file": path.name, "errors": errors or None}
 
     # -- Discover: search/browse content via Stremio-protocol addons --------
     # Addon manifest URLs (which commonly embed a personal config token) are
