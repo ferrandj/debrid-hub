@@ -28,7 +28,11 @@
   /* Topbar */
   header{position:sticky;top:0;z-index:20;background:rgba(14,17,22,.92);
     backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-  .top{display:flex;align-items:center;gap:16px;height:60px}
+  /* The header is a toolbar, not reading content -- it doesn't need to share
+     the content grid's 1180px cap, and forcing it to caused Debug/Keys to
+     overflow off the right edge on any window narrower than ~1400px. */
+  header .wrap{max-width:1600px}
+  .top{display:flex;align-items:center;gap:10px;height:60px;min-width:0}
   .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.2px;font-size:16px}
   .glyph{width:24px;height:24px;border-radius:6px;overflow:hidden;flex:none;
     display:grid;place-items:center;background:var(--panel2)}
@@ -44,9 +48,10 @@
     line-height:1;padding:5px 7px;opacity:.5;filter:grayscale(.6)}
   .lang-btn.on{background:var(--panel);opacity:1;filter:none}
   .lang-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-  .dots{display:flex;gap:12px;margin-left:6px}
-  .dot{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-family:var(--mono)}
-  .dot i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+  .dots{display:flex;gap:9px;margin-left:6px;flex:none}
+  .dot{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-family:var(--mono);
+    text-transform:uppercase}
+  .dot i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
   .dot.up i{background:var(--accent);box-shadow:0 0 8px var(--accent)}
   .dot.down i{background:var(--danger)}
   .spacer{flex:1}
@@ -287,6 +292,20 @@
   .badge.none{background:var(--panel2);color:var(--muted)}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
   .cfg-rm[disabled]{opacity:.35;cursor:default}
+
+  /* Between full desktop and the phone breakpoint below: the header has grown
+     a lot of buttons over time, so on a plain laptop-width window (not just a
+     phone) they were running off the right edge. Drop button text (icons +
+     tooltips carry the same info, same pattern the phone tier already used)
+     well before that happens. */
+  @media (max-width:1300px){
+    .brand small{display:none}
+    .iconbtn span{display:none}
+    .iconbtn{padding:0 9px}
+  }
+  @media (max-width:1010px){
+    .dots{display:none}
+  }
 
   @media (max-width:760px){
     :root{--grid:26px minmax(0,1fr) 42px 56px 68px}
@@ -701,7 +720,7 @@ async function loadProviders(){
   d.providers.forEach(p => CAPS[p.name] = p.capabilities || []);
   $('#keybtn').style.display = AUTH ? '' : 'none';
   $('#dots').innerHTML = d.providers.map(p =>
-    `<span class="dot ${p.healthy?'up':'down'}"><i></i>${esc(p.name)}</span>`).join('') ||
+    `<span class="dot ${p.healthy?'up':'down'}" title="${esc(p.name)} ${p.healthy?'✓':'✕'}"><i></i>${esc(p.name.slice(0,2))}</span>`).join('') ||
     `<span class="dot">${t('no_providers_configured')}</span>`;
 }
 
