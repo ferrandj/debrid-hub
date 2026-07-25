@@ -1581,9 +1581,11 @@ $('#detailBody').addEventListener('click', async e=>{
     addBtn.disabled=true; const orig=addBtn.textContent; addBtn.textContent=t('adding_ellipsis');
     try{
       const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-      openAddResult({addonName, streamName, token, response:r});
       if(r.ok) toast(t('toast_added'));
-      else toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
+      else{
+        openAddResult({addonName, streamName, token, response:r});
+        toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
+      }
     }catch(e){
       openAddResult({addonName, streamName, token, error:e.message});
       toast(t('toast_add_failed',{msg:e.message}), true, 5000);

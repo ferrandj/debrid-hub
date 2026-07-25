@@ -1,11 +1,12 @@
-// Add-result popup: the exact request/response for a discover/add attempt
-// must be visible and inspectable (not just a toast that vanishes), since
-// diagnosing a stuck integration (e.g. AllDebrid via an addon) depends on
-// seeing the addon's own status/detail.
+// Add-result popup: the exact request/response for a *failed* discover/add
+// attempt must be visible and inspectable (not just a toast that vanishes),
+// since diagnosing a stuck integration (e.g. AllDebrid via an addon) depends
+// on seeing the addon's own status/detail. Successful adds should stay quiet
+// (toast only) -- the user doesn't want a popup on the happy path.
 const { loadPage, waitFor, Suite } = require('./_harness.cjs');
 
 async function run() {
-  const suite = new Suite('Add-result popup: shows the exact call and response');
+  const suite = new Suite('Add-result popup: only shown on failure, with the exact call and response');
 
   const providersResp = { auth_required: false, providers: [] };
   const linksResp = { count: 0, total: 0, errors: {}, links: [] };
@@ -50,15 +51,9 @@ async function run() {
   suite.assert('popup starts closed', q('#addResultModal').hidden);
 
   qa('.src-item button[data-token]')[0].click();
-  await waitFor(() => !q('#addResultModal').hidden);
-  suite.assert('popup opens on a successful add', !q('#addResultModal').hidden);
-  suite.assert('popup shows the addon and stream name', q('#addResultBody').textContent.includes('Lumio') && q('#addResultBody').textContent.includes('[TB] Lumio release'));
-  suite.assert('popup shows the request payload (token)', q('#addResultBody').textContent.includes('TOKEN_OK'));
-  suite.assert('popup shows a 200 response', q('#addResultBody').textContent.includes('200'));
-  suite.assert('successful response is not styled as an error', !q('#addResultBody .st.err'));
-
-  q('#addResultClose').click();
-  suite.assert('close button hides the popup', q('#addResultModal').hidden);
+  await waitFor(() => q('#toast').classList.contains('show'));
+  suite.assert('a successful add does not open the popup, only a toast', q('#addResultModal').hidden);
+  suite.assert('success toast confirms the add', q('#toast').textContent.includes('Added'));
 
   qa('.src-item button[data-token]')[1].click();
   await waitFor(() => !q('#addResultModal').hidden);
