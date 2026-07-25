@@ -430,6 +430,10 @@
     <div class="spacer"></div>
     <button class="ghost" id="clearSel" data-i18n="btn_clear">Clear</button>
     <button class="ghost danger" id="delSel" data-i18n="btn_delete">Delete</button>
+    <button class="ghost" id="copyJdClipboard" hidden>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <span data-i18n="btn_copy_jd2">Copy for JD2</span></button>
     <button class="primary" id="copyJd">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
@@ -750,10 +754,15 @@ async function loadWatchFolder(){
 }
 function syncTrayButton(){
   const btn=$('#copyJd'); if(!btn || btn.disabled) return;
+  const clipBtn=$('#copyJdClipboard');
   btn.dataset.mode = WATCH.enabled ? 'folder' : 'clipboard';
   btn.innerHTML = WATCH.enabled
     ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> ${esc(t('btn_start_download'))}`
     : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> ${esc(t('btn_copy_jd2'))}`;
+  // Watch-folder mode is the primary tray button ("Start Download"); the
+  // plain clipboard option stays available alongside it as a secondary
+  // button, rather than replacing it -- the user wants both, not a toggle.
+  if(clipBtn) clipBtn.hidden = !WATCH.enabled;
 }
 
 async function loadLinks(refresh){
@@ -1165,6 +1174,14 @@ $('#copyJd').onclick=async()=>{
     else await copyToClipboard(ids, btn);
   }catch(e){ toast(t('toast_failed',{msg:e.message}),true); }
   finally{ btn.disabled=false; syncTrayButton(); }
+};
+$('#copyJdClipboard').onclick=async()=>{
+  const ids=[...SELECTED]; if(!ids.length) return;
+  const btn=$('#copyJdClipboard'); const orig=btn.innerHTML;
+  btn.disabled=true; btn.textContent=t('copy_jd2_resolving');
+  try{ await copyToClipboard(ids, btn); }
+  catch(e){ toast(t('toast_failed',{msg:e.message}),true); }
+  finally{ btn.disabled=false; btn.innerHTML=orig; }
 };
 
 /* Expand / collapse every group */
