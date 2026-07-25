@@ -34,12 +34,20 @@ class TestDropFilename:
 
 
 class TestWriteDrop:
-    def test_writes_one_new_entry_block_per_url(self, tmp_path):
+    def test_writes_one_blank_line_separated_block_per_url(self, tmp_path):
         folder = tmp_path / "watch"
         path = write_drop(str(folder), "My Download", ["https://a", "https://b"])
         assert path.parent == folder
         assert path.suffix == ".crawljob"
-        assert path.read_text() == "->NEW ENTRY<-\ntext=https://a\n->NEW ENTRY<-\ntext=https://b\n"
+        assert path.read_text() == (
+            "deepAnalyseEnabled=true\ntext=https://a\n\n"
+            "deepAnalyseEnabled=true\ntext=https://b\n"
+        )
+
+    def test_single_url_has_no_stray_blank_line(self, tmp_path):
+        folder = tmp_path / "watch"
+        path = write_drop(str(folder), "x", ["https://a"])
+        assert path.read_text() == "deepAnalyseEnabled=true\ntext=https://a\n"
 
     def test_creates_folder_if_missing(self, tmp_path):
         folder = tmp_path / "nested" / "watch"

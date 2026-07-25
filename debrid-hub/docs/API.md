@@ -165,9 +165,9 @@ both stay available in the UI): write resolved URLs into a `.crawljob` file
 inside a folder mounted into the container (`DEBRID_HUB_WATCH_DIR`) that
 JDownloader2's **FolderWatch** extension is watching, so links get added to
 the LinkGrabber without any clipboard step. `.crawljob` is JDownloader2's own
-native link-container format — one `->NEW ENTRY<-` block per URL, each with
-just a `text=<url>` field — parsed directly by FolderWatch's own container
-plugin. See [`PRODUCT.md`](PRODUCT.md) and the README's "JD2: clipboard or
+native link-container format — one `deepAnalyseEnabled=true` + `text=<url>`
+block per URL, separated by a blank line — parsed directly by FolderWatch's
+own container plugin. See [`PRODUCT.md`](PRODUCT.md) and the README's "JD2: clipboard or
 watch folder" section for setup, including the JD2-side Watch Folders
 registration this depends on.
 
@@ -178,8 +178,9 @@ Whether a watch folder is configured, and the configured cleanup interval.
 ```
 
 ### `POST /api/watchfolder/drop`
-Resolve link ids and write a `.crawljob` file (one `->NEW ENTRY<-` block per
-URL) into the watch folder. `400` if no watch folder is configured.
+Resolve link ids and write a `.crawljob` file (one `deepAnalyseEnabled=true` +
+`text=<url>` block per URL) into the watch folder. `400` if no watch folder
+is configured.
 
 Request (`WatchFolderDropRequest`): `{ "ids": ["<id>", …], "name": "optional label" }`
 (or `{ "id": "<id>" }`). `name` becomes the file's basename (sanitized,
