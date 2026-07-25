@@ -21,7 +21,7 @@ async function run() {
     else if (reqPath.startsWith('/api/watchfolder/drop')) {
       const req = JSON.parse(opts.body);
       dropCalls.push(req);
-      body = { ok: true, written: req.ids.length, file: 'Test_20260101-000000.txt', errors: null };
+      body = { ok: true, written: req.ids.length, file: 'Test_20260101-000000.crawljob', errors: null };
     } else if (reqPath.startsWith('/api/watchfolder')) body = { enabled: true, cleanup_minutes: 60 };
     else if (reqPath.startsWith('/api/resolve')) {
       const ids = JSON.parse(opts.body).ids;

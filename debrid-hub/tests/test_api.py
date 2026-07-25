@@ -163,8 +163,10 @@ class TestWatchFolder:
         files = list(watch_dir.iterdir())
         assert len(files) == 1
         assert files[0].name.startswith("My_Batch_")
-        content = files[0].read_text().strip().splitlines()
-        assert len(content) == 2
+        assert files[0].suffix == ".crawljob"
+        content = files[0].read_text()
+        assert content.count("->NEW ENTRY<-") == 2
+        assert content.count("text=") == 2
 
     def test_drop_defaults_filename_when_no_name_given(self, data_dir, tmp_path):
         watch_dir = tmp_path / "watch"

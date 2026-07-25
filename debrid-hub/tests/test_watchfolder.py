@@ -30,15 +30,16 @@ class TestSanitizeLabel:
 class TestDropFilename:
     def test_includes_sanitized_label_and_timestamp(self):
         now = datetime(2026, 7, 24, 15, 30, 12)
-        assert drop_filename("Ubuntu 22.04", now) == "Ubuntu_22.04_20260724-153012.txt"
+        assert drop_filename("Ubuntu 22.04", now) == "Ubuntu_22.04_20260724-153012.crawljob"
 
 
 class TestWriteDrop:
-    def test_writes_urls_one_per_line(self, tmp_path):
+    def test_writes_one_new_entry_block_per_url(self, tmp_path):
         folder = tmp_path / "watch"
         path = write_drop(str(folder), "My Download", ["https://a", "https://b"])
         assert path.parent == folder
-        assert path.read_text() == "https://a\nhttps://b\n"
+        assert path.suffix == ".crawljob"
+        assert path.read_text() == "->NEW ENTRY<-\ntext=https://a\n->NEW ENTRY<-\ntext=https://b\n"
 
     def test_creates_folder_if_missing(self, tmp_path):
         folder = tmp_path / "nested" / "watch"

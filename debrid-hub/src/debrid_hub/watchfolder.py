@@ -22,12 +22,20 @@ def sanitize_label(label: str) -> str:
 
 def drop_filename(label: str, now: datetime | None = None) -> str:
     ts = (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
-    return f"{sanitize_label(label)}_{ts}.txt"
+    return f"{sanitize_label(label)}_{ts}.crawljob"
+
+
+def _crawljob_body(urls: list[str]) -> str:
+    """One ->NEW ENTRY<- block per URL, each with just a `text` field --
+    the format JDownloader2's FolderWatch extension parses directly via its
+    own CrawlerJobContainer plugin, rather than depending on whatever
+    generic container plugin handles a plain .txt link list."""
+    return "\n".join(f"->NEW ENTRY<-\ntext={url}" for url in urls) + "\n"
 
 
 def write_drop(folder: str, label: str, urls: list[str]) -> Path:
-    """Write one text file, one URL per line, into `folder` (created if
-    missing) so JDownloader2's FolderWatch extension can pick it up."""
+    """Write one .crawljob file into `folder` (created if missing) so
+    JDownloader2's FolderWatch extension can pick it up."""
     if not folder:
         raise ValueError("No watch folder configured (set DEBRID_HUB_WATCH_DIR).")
     if not urls:
@@ -35,7 +43,7 @@ def write_drop(folder: str, label: str, urls: list[str]) -> Path:
     dest_dir = Path(folder)
     dest_dir.mkdir(parents=True, exist_ok=True)
     path = dest_dir / drop_filename(label)
-    path.write_text("\n".join(urls) + "\n", encoding="utf-8")
+    path.write_text(_crawljob_body(urls), encoding="utf-8")
     return path
 
 

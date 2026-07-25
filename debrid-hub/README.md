@@ -15,7 +15,7 @@ One place to see every link across your debrid accounts — **Real-Debrid, AllDe
 - **Manage downloads in place**: delete a single file, a whole season, or an entire series — or multi-select and delete in bulk — straight from the UI/CLI/API. Deletions hit each provider's own API.
 - Resolves the actual direct download URL on demand (links are metered/locked on some services, so this happens when you copy, not when you browse).
 - **JD2 tray**: tick several links, hit *Copy for JD2*, and every direct URL lands on your clipboard newline-separated. JDownloader2 monitors the clipboard by default, so it auto-catches them into the LinkGrabber — or just paste.
-- **JD2 watch folder (alternative to clipboard)**: set `DEBRID_HUB_WATCH_DIR` to a folder mounted into the container and the tray button becomes **Start Download** — instead of copying to the clipboard, it writes a `.txt` file (named after what you're downloading + a timestamp) with one URL per line straight into that folder, for JDownloader2's own **FolderWatch** extension to pick up. Optionally set `DEBRID_HUB_WATCH_CLEANUP_MINUTES` to auto-purge files from that folder once they're older than N minutes. See [JD2: clipboard or watch folder](#jd2-clipboard-or-watch-folder) below.
+- **JD2 watch folder (alongside the clipboard, not instead of it)**: set `DEBRID_HUB_WATCH_DIR` to a folder mounted into the container and a second tray button, **Start Download**, appears next to Copy for JD2 — it writes a `.crawljob` file (JDownloader2's native link-container format, named after what you're downloading + a timestamp) straight into that folder, for JDownloader2's own **FolderWatch** extension to pick up. Optionally set `DEBRID_HUB_WATCH_CLEANUP_MINUTES` to auto-purge files from that folder once they're older than N minutes. See [JD2: clipboard or watch folder](#jd2-clipboard-or-watch-folder) below.
 - **Debug mode**: `?debug=true` on `/api/links`, `debrid-hub list --debug`, or the **🐛 Debug** button in the UI show the exact outbound request/response for every provider call that last listing made (secrets redacted) — for when a provider changes their API out from under you.
 - **Discover**: a separate tab that browses/searches content through **Stremio-protocol addons** you configure — metadata (posters, cast, descriptions) and, for debrid-integrated addons, sources you can push straight into a debrid account with one click. No Stremio app needed. See [Discover](#discover-content-via-stremio-addons) below.
 
@@ -122,14 +122,30 @@ environment:
   DEBRID_HUB_WATCH_CLEANUP_MINUTES: "60"   # optional, see below
 ```
 
-Point JDownloader2's **FolderWatch** extension (Settings → Advanced Settings
-→ search "folderwatch") at that same host folder. Once `DEBRID_HUB_WATCH_DIR`
-is set, the tray button changes to **Start Download**: instead of copying to
-the clipboard, it resolves the selected links and writes one `.txt` file —
-named after what you're downloading plus a timestamp (e.g.
-`Ubuntu_22.04_20260724-153012.txt`), one URL per line — straight into the
+Point JDownloader2's **FolderWatch** extension at that same folder — this
+needs two separate steps in JD2 itself, not just the volume mount above:
+
+1. Make sure the **FolderWatch extension is enabled** (Settings → Extensions).
+2. Add the exact watched path to FolderWatch's own **Watch Folders** list
+   (Settings → Advanced Settings → search "folderwatch"). Setting
+   `DEBRID_HUB_WATCH_DIR` only controls where *Debrid Hub* writes — JD2 has
+   its own, separate list of folders it actually scans, and won't look at a
+   path just because Debrid Hub is writing to it. If JD2 and Debrid Hub run
+   in different containers/hosts, the same host folder needs to be mounted
+   into both, and the path you register in JD2 is JD2's own view of it (can
+   be a different string than `DEBRID_HUB_WATCH_DIR`'s value).
+
+Once `DEBRID_HUB_WATCH_DIR` is set, the tray gets a second button —
+**Start Download** next to the existing **Copy for JD2** — so both options
+stay available. Start Download resolves the selected links and writes a
+**`.crawljob`** file (JDownloader2's own native link-container format, one
+`->NEW ENTRY<-` block per URL) named after what you're downloading plus a
+timestamp (e.g. `Ubuntu_22.04_20260724-153012.crawljob`) straight into the
 watched folder. JD2's FolderWatch picks it up on its next scan and adds the
-links to the LinkGrabber, same as a clipboard catch.
+links to the LinkGrabber, same as a clipboard catch — and moves the file into
+an `added/` subfolder once it does. If a dropped file just sits there
+untouched, JD2 never scanned it — that's a folder-registration/path problem
+(see above), not a Debrid Hub problem.
 
 Set `DEBRID_HUB_WATCH_CLEANUP_MINUTES` (minutes; unset or `0` disables) to
 have Debrid Hub periodically delete files from that folder once they're older
@@ -175,7 +191,7 @@ Base URL `http://host:8080`. If `DEBRID_HUB_API_KEY` is set, send `Authorization
 | POST | `/api/resolve` | body `{"ids":["…"]}` (or `{"id":"…"}`) → direct URLs |
 | POST | `/api/delete` | body `{"ids":["…"]}` (or `{"id":"…"}`) → delete from provider; per-id `{"ok":true}`/`{"error":…}` |
 | GET | `/api/watchfolder` | whether a JD2 watch folder is configured + its cleanup interval |
-| POST | `/api/watchfolder/drop` | body `{"ids":["…"], "name":"…"}` → resolve and write a `.txt` link file into the watch folder |
+| POST | `/api/watchfolder/drop` | body `{"ids":["…"], "name":"…"}` → resolve and write a `.crawljob` file into the watch folder |
 | GET / POST / DELETE | `/api/addons` | list / add / remove content-discovery addons (encrypted, URL never returned) |
 | GET | `/api/discover/catalogs` \| `/catalog` \| `/search` \| `/meta` \| `/streams` | browse, search, and fetch metadata/sources across configured addons |
 | POST | `/api/discover/add` | resolve a chosen stream — for a debrid-integrated addon, adds it to the debrid account |

@@ -158,14 +158,18 @@ Request (`DeleteRequest`): `{ "ids": ["<id>", …] }` (or `{ "id": "<id>" }`).
 ```
 Each id is reported independently; one failure does not abort the others.
 
-## Watch folder (JD2 FolderWatch, instead of clipboard)
+## Watch folder (JD2 FolderWatch, alongside the clipboard)
 
-An alternative to the clipboard-based "Copy for JD2" flow: instead of putting
-resolved URLs on the clipboard, write them into a `.txt` file inside a folder
-mounted into the container (`DEBRID_HUB_WATCH_DIR`) that JDownloader2's
-**FolderWatch** extension is watching, so links get added to the LinkGrabber
-without any clipboard step. See [`PRODUCT.md`](PRODUCT.md) and the README's
-"JD2: clipboard or watch folder" section for setup.
+An addition to the clipboard-based "Copy for JD2" flow (not a replacement —
+both stay available in the UI): write resolved URLs into a `.crawljob` file
+inside a folder mounted into the container (`DEBRID_HUB_WATCH_DIR`) that
+JDownloader2's **FolderWatch** extension is watching, so links get added to
+the LinkGrabber without any clipboard step. `.crawljob` is JDownloader2's own
+native link-container format — one `->NEW ENTRY<-` block per URL, each with
+just a `text=<url>` field — parsed directly by FolderWatch's own container
+plugin. See [`PRODUCT.md`](PRODUCT.md) and the README's "JD2: clipboard or
+watch folder" section for setup, including the JD2-side Watch Folders
+registration this depends on.
 
 ### `GET /api/watchfolder`
 Whether a watch folder is configured, and the configured cleanup interval.
@@ -174,15 +178,15 @@ Whether a watch folder is configured, and the configured cleanup interval.
 ```
 
 ### `POST /api/watchfolder/drop`
-Resolve link ids and write their URLs (one per line) into a new file in the
-watch folder. `400` if no watch folder is configured.
+Resolve link ids and write a `.crawljob` file (one `->NEW ENTRY<-` block per
+URL) into the watch folder. `400` if no watch folder is configured.
 
 Request (`WatchFolderDropRequest`): `{ "ids": ["<id>", …], "name": "optional label" }`
 (or `{ "id": "<id>" }`). `name` becomes the file's basename (sanitized,
 truncated) — defaults to `"download"` for a single item or `"<n>_links"` for
 several; a timestamp is always appended.
 ```json
-{ "ok": true, "written": 2, "file": "Ubuntu_22.04_20260724-153012.txt", "errors": null }
+{ "ok": true, "written": 2, "file": "Ubuntu_22.04_20260724-153012.crawljob", "errors": null }
 ```
 `errors` (if non-null) maps ids that failed to resolve to their error message,
 same shape as `/api/resolve`/`/api/delete` — partial success still writes the
