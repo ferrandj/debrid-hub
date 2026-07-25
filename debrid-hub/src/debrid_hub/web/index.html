@@ -1381,11 +1381,12 @@ function refreshFavoritesSection(){
 }
 
 function setView(v){
+  const switchedToLibrary = v==='library' && VIEW!=='library';
   VIEW=v;
   $('#libraryView').hidden = v!=='library';
   $('#discoverView').hidden = v!=='discover';
   document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('on', b.dataset.view===v));
-  if(v==='library'){ updateTray(); }
+  if(v==='library'){ updateTray(); if(switchedToLibrary) loadLinks(true); }
   else{ $('#tray').classList.remove('show'); if(!DISCOVER_LOADED){ DISCOVER_LOADED=true; loadDiscoverSections(); } }
 }
 document.querySelectorAll('.view-tab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
