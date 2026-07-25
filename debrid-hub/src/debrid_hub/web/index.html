@@ -501,6 +501,18 @@
   </div>
 </div>
 
+<div class="modal" id="addResultModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><b data-i18n="add_result_title">Add result</b>
+      <button class="iconbtn" id="addResultClose" data-i18n-title="title_close" title="Close">✕</button></div>
+    <p class="modal-note" data-i18n="add_result_note">The exact call and response from the extension, so you can see what actually happened.</p>
+    <div id="addResultBody"></div>
+    <div class="modal-actions">
+      <button class="ghost" id="addResultDone" data-i18n="btn_close">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -564,6 +576,10 @@ const I18N = {
     show_more_sections: 'Show more sections ({n} left)',
     detail_unknown: 'Unknown', detail_no_sources: 'No sources found from your extensions.', detail_sources: 'Sources ({n})',
     detail_select_episode: 'Select an episode to see its sources.',
+    add_result_title: 'Add result',
+    add_result_note: 'The exact call and response from the extension, so you can see what actually happened.',
+    add_result_request: 'Request', add_result_response: 'Response',
+    add_result_error: 'No response reached the server',
     title_favorite: 'Add to favorites', title_unfavorite: 'Remove from favorites',
     favorites_title: 'Favorites ({n})', toast_favorite_failed: 'Favorite failed: {msg}',
     btn_add_source: 'Add', adding_ellipsis: 'Adding…',
@@ -636,6 +652,10 @@ const I18N = {
     show_more_sections: 'Afficher plus de sections ({n} restantes)',
     detail_unknown: 'Inconnu', detail_no_sources: 'Aucune source trouvée via vos extensions.', detail_sources: 'Sources ({n})',
     detail_select_episode: 'Sélectionnez un épisode pour voir ses sources.',
+    add_result_title: 'Résultat de l\'ajout',
+    add_result_note: 'L\'appel exact et la réponse de l\'extension, pour voir ce qu\'il s\'est vraiment passé.',
+    add_result_request: 'Requête', add_result_response: 'Réponse',
+    add_result_error: 'Aucune réponse du serveur',
     title_favorite: 'Ajouter aux favoris', title_unfavorite: 'Retirer des favoris',
     favorites_title: 'Favoris ({n})', toast_favorite_failed: 'Échec favori : {msg}',
     btn_add_source: 'Ajouter', adding_ellipsis: 'Ajout…',
@@ -1488,7 +1508,8 @@ function srcListHtml(streams){
         <div class="src-desc">${esc(s.description||'')}</div>
       </div>
       <div class="src-size">${s.size?human(s.size):''}</div>
-      <button class="primary" data-token="${esc(s.token)}" style="height:32px;padding:0 12px;flex:none">${esc(t('btn_add_source'))}</button>
+      <button class="primary" data-token="${esc(s.token)}" data-addon="${esc(s.addon_name||'')}" data-name="${esc(s.name||'')}"
+        style="height:32px;padding:0 12px;flex:none">${esc(t('btn_add_source'))}</button>
     </div>`).join('') : `<div class="state" style="padding:16px 0">${esc(t('detail_no_sources'))}</div>`;
   return `<h3>${esc(t('detail_sources',{n:streams.length}))}</h3>${srcHtml}`;
 }
@@ -1556,12 +1577,17 @@ $('#detailBody').addEventListener('click', async e=>{
   if(favBtn){ await handleFavClick(favBtn); return; }
   const addBtn=e.target.closest('button[data-token]');
   if(addBtn){
-    const token=addBtn.dataset.token; addBtn.disabled=true; const orig=addBtn.textContent; addBtn.textContent=t('adding_ellipsis');
+    const token=addBtn.dataset.token, addonName=addBtn.dataset.addon||'', streamName=addBtn.dataset.name||'';
+    addBtn.disabled=true; const orig=addBtn.textContent; addBtn.textContent=t('adding_ellipsis');
     try{
       const r=await api('/api/discover/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+      openAddResult({addonName, streamName, token, response:r});
       if(r.ok) toast(t('toast_added'));
       else toast(t('toast_add_failed_detail',{reason:r.detail || ('status '+r.status)}), true, 5000);
-    }catch(e){ toast(t('toast_add_failed',{msg:e.message}), true, 5000); }
+    }catch(e){
+      openAddResult({addonName, streamName, token, error:e.message});
+      toast(t('toast_add_failed',{msg:e.message}), true, 5000);
+    }
     finally{ addBtn.disabled=false; addBtn.textContent=orig; }
     return;
   }
@@ -1589,6 +1615,38 @@ $('#detailBody').addEventListener('click', async e=>{
 function closeDetail(){ $('#detailModal').hidden=true; DETAIL=null; }
 $('#detailClose').onclick=closeDetail;
 $('#detailModal').onclick=e=>{ if(e.target===$('#detailModal')) closeDetail(); };
+
+/* ---- Add-result popup: the exact call/response for a discover/add attempt,
+   so a failure (e.g. an addon's own debrid resolution failing) is visible
+   and inspectable instead of only flashing by as a toast. ---- */
+function openAddResult({addonName, streamName, token, response, error}){
+  const ok = response && response.ok;
+  const reqBlock = `<div class="dbg-call">
+      <div class="ln"><span class="m">POST</span> /api/discover/add</div>
+      <pre>${esc(JSON.stringify({token}, null, 2))}</pre>
+    </div>`;
+  const respBlock = error
+    ? `<div class="dbg-call"><div class="ln"><span class="st err">${esc(t('add_result_error'))}</span></div><pre>${esc(error)}</pre></div>`
+    : `<div class="dbg-call">
+        <div class="ln">→ <span class="st${ok?'':' err'}">${esc(String(response.status))}</span></div>
+        <pre>${esc(JSON.stringify(response, null, 2))}</pre>
+      </div>`;
+  $('#addResultBody').innerHTML = `
+    <p class="modal-note" style="margin-bottom:10px">
+      <span class="tag" style="background:var(--accent-dim);color:#d9fff8">${esc(addonName)}</span> ${esc(streamName)}
+    </p>
+    <div class="dbg-provider" style="border:none;padding:0">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">${esc(t('add_result_request'))}</div>
+      ${reqBlock}
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 6px">${esc(t('add_result_response'))}</div>
+      ${respBlock}
+    </div>`;
+  $('#addResultModal').hidden=false;
+}
+function closeAddResult(){ $('#addResultModal').hidden=true; }
+$('#addResultClose').onclick=closeAddResult;
+$('#addResultDone').onclick=closeAddResult;
+$('#addResultModal').onclick=e=>{ if(e.target===$('#addResultModal')) closeAddResult(); };
 
 /* ---- Extensions settings ---- */
 async function refreshAddonsList(){
@@ -1632,7 +1690,7 @@ $('#addonsBtn').onclick=openAddons;
 $('#addonsClose').onclick=closeAddons; $('#addonsDone').onclick=closeAddons;
 $('#addonsModal').onclick=e=>{ if(e.target===$('#addonsModal')) closeAddons(); };
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeDetail(); closeAddons(); }
+  if(e.key==='Escape'){ closeDetail(); closeAddons(); closeAddResult(); }
 });
 
 (async()=>{
