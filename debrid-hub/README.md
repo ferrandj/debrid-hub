@@ -139,11 +139,12 @@ Once `DEBRID_HUB_WATCH_DIR` is set, the tray gets a second button —
 **Start Download** next to the existing **Copy for JD2** — so both options
 stay available. Start Download resolves the selected links and writes a
 **`.crawljob`** file (JDownloader2's own native link-container format, one
-`deepAnalyseEnabled=true` + `text=<url>` block per URL, blank-line separated)
-named after what you're downloading plus a
+`deepAnalyseEnabled=true` + `text=<url>` + `autoStart=TRUE` block per URL,
+blank-line separated) named after what you're downloading plus a
 timestamp (e.g. `Ubuntu_22.04_20260724-153012.crawljob`) straight into the
-watched folder. JD2's FolderWatch picks it up on its next scan and adds the
-links to the LinkGrabber, same as a clipboard catch — and moves the file into
+watched folder. JD2's FolderWatch picks it up on its next scan and, thanks to
+`autoStart=TRUE`, starts downloading right away instead of just sitting in
+LinkGrabber. It moves the file into
 an `added/` subfolder once it does. If a dropped file just sits there
 untouched, JD2 never scanned it — that's a folder-registration/path problem
 (see above), not a Debrid Hub problem.

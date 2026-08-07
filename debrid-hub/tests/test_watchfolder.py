@@ -40,14 +40,14 @@ class TestWriteDrop:
         assert path.parent == folder
         assert path.suffix == ".crawljob"
         assert path.read_text() == (
-            "deepAnalyseEnabled=true\ntext=https://a\n\n"
-            "deepAnalyseEnabled=true\ntext=https://b\n"
+            "deepAnalyseEnabled=true\ntext=https://a\nautoStart=TRUE\n\n"
+            "deepAnalyseEnabled=true\ntext=https://b\nautoStart=TRUE\n"
         )
 
     def test_single_url_has_no_stray_blank_line(self, tmp_path):
         folder = tmp_path / "watch"
         path = write_drop(str(folder), "x", ["https://a"])
-        assert path.read_text() == "deepAnalyseEnabled=true\ntext=https://a\n"
+        assert path.read_text() == "deepAnalyseEnabled=true\ntext=https://a\nautoStart=TRUE\n"
 
     def test_creates_folder_if_missing(self, tmp_path):
         folder = tmp_path / "nested" / "watch"

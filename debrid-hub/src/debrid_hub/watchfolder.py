@@ -26,13 +26,15 @@ def drop_filename(label: str, now: datetime | None = None) -> str:
 
 
 def _crawljob_body(urls: list[str]) -> str:
-    """One block per URL (`deepAnalyseEnabled=true` + `text=<url>`),
-    separated by a blank line -- the format JDownloader2's FolderWatch
-    extension parses directly via its own CrawlerJobContainer plugin,
-    rather than depending on whatever generic container plugin handles a
-    plain .txt link list. `deepAnalyseEnabled` makes JD2 resolve the link
-    through its plugin system instead of downloading it as a raw file."""
-    return "\n\n".join(f"deepAnalyseEnabled=true\ntext={url}" for url in urls) + "\n"
+    """One block per URL (`deepAnalyseEnabled=true` + `text=<url>` +
+    `autoStart=TRUE`), separated by a blank line -- the format
+    JDownloader2's FolderWatch extension parses directly via its own
+    CrawlerJobContainer plugin, rather than depending on whatever generic
+    container plugin handles a plain .txt link list. `deepAnalyseEnabled`
+    makes JD2 resolve the link through its plugin system instead of
+    downloading it as a raw file; `autoStart` starts the download
+    immediately instead of leaving it sitting in LinkGrabber."""
+    return "\n\n".join(f"deepAnalyseEnabled=true\ntext={url}\nautoStart=TRUE" for url in urls) + "\n"
 
 
 def write_drop(folder: str, label: str, urls: list[str]) -> Path:
